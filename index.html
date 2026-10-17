@@ -3,305 +3,223 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My Hisab Kitab</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#f3f6fb;color:#172033}
+body{margin:0;background:#f2f5fa;color:#18243a;font-family:Arial,sans-serif}
 header{background:#173b70;color:white;padding:22px 16px}
-header h1{margin:0;font-size:25px}
-header p{margin:7px 0 0;color:#d9e6ff}
-main{max-width:720px;margin:auto;padding:16px}
-.card{background:white;padding:18px;border-radius:14px;margin-bottom:15px;box-shadow:0 3px 14px #142b4c0d}
-h2{font-size:19px;margin-top:0}
-input,select,button{width:100%;padding:12px;margin:6px 0 12px;border:1px solid #d5dce7;border-radius:8px;font-size:16px}
-button{background:#174b91;color:white;border:0;font-weight:bold;cursor:pointer}
-button.secondary{background:#e8eef8;color:#173b70}
-button.delete{width:auto;background:#fff0f0;color:#b42318;padding:8px 12px}
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.stat{background:#f0f5ff;border-radius:10px;padding:12px 8px;overflow-wrap:anywhere}
-.stat small{display:block;color:#53647b;margin-bottom:8px}
-.stat strong{font-size:17px}
-.row{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #edf0f5;padding:12px 0}
-.row:last-child{border-bottom:0}
-.row p{margin:5px 0;color:#637086;font-size:13px}
+header h1{margin:0}
+main{max-width:650px;margin:auto;padding:15px}
+.card{background:white;padding:17px;margin-bottom:15px;border-radius:14px;box-shadow:0 2px 10px #0000000a}
+input,select,button{box-sizing:border-box;width:100%;padding:12px;margin:7px 0 13px;border:1px solid #d1d9e5;border-radius:8px;font-size:16px}
+button{background:#174b91;color:white;border:0;font-weight:bold}
+.secondary{background:#e8eef8;color:#173b70}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.stat{background:#edf3ff;padding:11px 7px;border-radius:9px;overflow-wrap:anywhere}
+.stat small{display:block;margin-bottom:8px;color:#52627a}
+.stat strong{font-size:15px}
+.entry{padding:12px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:8px;overflow-wrap:anywhere}
+.entry small{display:block;color:#667085;margin-top:5px}
 .income{color:#14804a}.expense{color:#c13737}
 .hidden{display:none}
-#message{font-size:14px;overflow-wrap:anywhere}
-footer{text-align:center;color:#667085;font-size:12px;padding:16px}
+#message{overflow-wrap:anywhere;font-size:14px}
+@media(max-width:420px){.stats{grid-template-columns:1fr}.stat{display:flex;justify-content:space-between;align-items:center}.stat small{margin:0}}
 </style>
 </head>
 <body>
 <header>
 <h1>My Hisab Kitab</h1>
-<p>Your personal income and expense tracker</p>
+<p>Apni income aur expenses ka hisaab rakho</p>
 </header>
 <main>
-<section class="card" id="auth">
+<section class="card" id="loginBox">
 <h2>Login / Create Account</h2>
-<p>Use your email and password to access your account from any device.</p>
-<form id="authForm">
-<label>Email address</label>
-<input id="email" type="email" autocomplete="email" required placeholder="you@example.com">
+<form id="loginForm">
+<label>Email</label>
+<input id="email" type="email" required placeholder="Your email">
 <label>Password (minimum 6 characters)</label>
-<input id="password" type="password" minlength="6" autocomplete="current-password" required placeholder="Enter password">
-<button type="submit" id="loginBtn">Login</button>
-<button type="button" class="secondary" id="signupBtn">Create new account</button>
+<input id="password" type="password" minlength="6" required placeholder="Your password">
+<button type="submit">Login</button>
+<button type="button" class="secondary" id="signup">Create New Account</button>
 </form>
 </section>
 
-<section id="app" class="hidden">
+<section id="dashboard" class="hidden">
 <div class="card">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<h2>My Dashboard</h2>
-<button id="logoutBtn" class="secondary" style="width:auto">Logout</button>
-</div>
-<p id="userEmail" style="font-size:13px;color:#667085"></p>
+<button id="logout" class="secondary">Logout</button>
+<p id="userEmail"></p>
 <div class="stats">
-<div class="stat"><small>Total income</small><strong id="totalIncome">0.00</strong></div>
-<div class="stat"><small>Total expense</small><strong id="totalExpense">0.00</strong></div>
-<div class="stat"><small>Balance</small><strong id="balance">0.00</strong></div>
+<div class="stat"><small>Income</small><strong id="income">0</strong></div>
+<div class="stat"><small>Expenses</small><strong id="expenses">0</strong></div>
+<div class="stat"><small>Balance</small><strong id="balance">0</strong></div>
 </div>
-<p style="font-size:12px;color:#667085">Amounts are shown in your chosen currency.</p>
+<p><small>Sabhi entries ek hi currency mein rakhein.</small></p>
 </div>
 
 <div class="card">
-<h2>Add transaction</h2>
-<form id="transactionForm">
-<label>Transaction type</label>
+<h2>Add Income / Expense</h2>
+<form id="entryForm">
+<label>Type</label>
 <select id="type"><option value="expense">Expense</option><option value="income">Income</option></select>
 <label>Amount</label>
-<input id="amount" type="number" min="0.01" step="0.01" required placeholder="Enter amount">
-<label>Currency</label>
-<select id="currency">
-<option value="ZMW">ZMW - Zambian Kwacha</option>
-<option value="INR">INR - Indian Rupee</option>
-<option value="USD">USD - US Dollar</option>
-</select>
+<input id="amount" type="number" min="0.01" step="0.01" required placeholder="Amount">
 <label>Category</label>
 <select id="category">
 <option>Food</option><option>Travel</option><option>Rent</option>
 <option>Shopping</option><option>Bills</option><option>Salary</option>
-<option>Business</option><option>Health</option><option>Other</option>
+<option>Business</option><option>Health</option><option>Family</option><option>Other</option>
 </select>
 <label>Date</label>
 <input id="date" type="date" required>
 <label>Note (optional)</label>
-<input id="note" type="text" maxlength="200" placeholder="What was this for?">
-<button type="submit">Save transaction</button>
+<input id="note" maxlength="200" placeholder="Details">
+<button id="saveButton" type="submit">Save Transaction</button>
 </form>
 </div>
 
 <div class="card">
-<h2>Transaction history</h2>
-<div id="transactions">Loading...</div>
+<h2>Transaction History</h2>
+<div id="history">No transactions yet.</div>
 </div>
 </section>
 <p id="message" role="status"></p>
 </main>
-<footer>My Hisab Kitab · Your personal finances</footer>
 
 <script>
-const SUPABASE_URL = "https://ajkdllnuivbifoagtxee.supabase.co";
-const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL="https://ajkdllnuivbifoagtxee.supabase.co";
+const SUPABASE_KEY="sb_publishable_JrSxYg_CX5vwsHklYnYW3Q_lCq24I8p";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let user=null;
 
-const $ = id => document.getElementById(id);
-let currentUser = null;
-let transactions = [];
-let currency = "ZMW";
+const now=new Date();
+$("date").value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
 
-$("date").value = new Date().toLocaleDateString("en-CA");
+function say(t){$("message").textContent=t}
+function money(n){return Number(n).toLocaleString("en",{minimumFractionDigits:2,maximumFractionDigits:2})}
 
-function message(text, error = false) {
-  $("message").textContent = text;
-  $("message").style.color = error ? "#b42318" : "#14804a";
+function show(userData){
+ user=userData;
+ $("loginBox").classList.add("hidden");
+ $("dashboard").classList.remove("hidden");
+ $("userEmail").textContent=user.email||"";
+ load();
+}
+function loggedOut(){
+ user=null;
+ $("dashboard").classList.add("hidden");
+ $("loginBox").classList.remove("hidden");
+ $("history").textContent="No transactions yet.";
+ $("income").textContent=$("expenses").textContent=$("balance").textContent="0.00";
 }
 
-function money(value) {
-  return new Intl.NumberFormat("en", {
-    style: "currency",
-    currency: currency,
-    maximumFractionDigits: 2
-  }).format(value);
-}
-
-function showApp(user) {
-  currentUser = user;
-  $("auth").classList.add("hidden");
-  $("app").classList.remove("hidden");
-  $("userEmail").textContent = user.email || "";
-  loadTransactions();
-}
-
-function showLogin() {
-  currentUser = null;
-  $("auth").classList.remove("hidden");
-  $("app").classList.add("hidden");
-}
-
-$("authForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const email = $("email").value.trim();
-  const password = $("password").value;
-  $("loginBtn").disabled = true;
-  message("Logging in...");
-
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
-
-  $("loginBtn").disabled = false;
-  if (error) return message(error.message, true);
-  if (data.user) {
-    showApp(data.user);
-    message("Login successful!");
-  }
+$("loginForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ say("Logging in...");
+ const {data,error}=await db.auth.signInWithPassword({
+  email:$("email").value.trim(),
+  password:$("password").value
+ });
+ if(error){say(error.message);return}
+ if(data.user){show(data.user);say("Login successful")}
 });
 
-$("signupBtn").addEventListener("click", async () => {
-  const email = $("email").value.trim();
-  const password = $("password").value;
-  if (!email || password.length < 6) {
-    return message("Enter a valid email and password of at least 6 characters.", true);
-  }
-  $("signupBtn").disabled = true;
-  message("Creating your account...");
-
-  const { data, error } = await db.auth.signUp({ email, password });
-
-  $("signupBtn").disabled = false;
-  if (error) return message(error.message, true);
-
-  if (data.session && data.user) {
-    showApp(data.user);
-    message("Account created successfully!");
-  } else {
-    message("Account request successful. Check your email to confirm your account, then log in.");
-  }
+$("signup").addEventListener("click",async()=>{
+ const email=$("email").value.trim(),password=$("password").value;
+ if(!email||password.length<6){
+  say("Enter email and a password with at least 6 characters.");return;
+ }
+ say("Creating account...");
+ const {data,error}=await db.auth.signUp({email,password});
+ if(error){say(error.message);return}
+ if(data.session&&data.user){
+  show(data.user);say("Account created successfully.");
+ }else{
+  say("Check your email for a confirmation link, then log in.");
+ }
 });
 
-$("logoutBtn").addEventListener("click", async () => {
-  const { error } = await db.auth.signOut();
-  if (error) return message(error.message, true);
-  showLogin();
-  message("You are logged out.");
+$("logout").addEventListener("click",async()=>{
+ const {error}=await db.auth.signOut();
+ if(error){say(error.message);return}
+ loggedOut();say("Logged out.");
 });
 
-$("currency").addEventListener("change", e => {
-  currency = e.target.value;
-  renderTransactions();
+$("entryForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ if(!user){say("Please log in first.");return}
+ const amount=Number($("amount").value);
+ if(!Number.isFinite(amount)||amount<=0){
+  say("Enter a valid amount.");return;
+ }
+ const button=$("saveButton");
+ button.disabled=true;button.textContent="Saving...";
+ say("Saving transaction...");
+ const {error}=await db.from("transactions").insert({
+  user_id:user.id,
+  type:$("type").value,
+  amount,
+  category:$("category").value,
+  note:$("note").value.trim()||null,
+  transaction_date:$("date").value
+ });
+ button.disabled=false;button.textContent="Save Transaction";
+ if(error){say(error.message);return}
+ $("amount").value="";$("note").value="";
+ await load();say("Transaction saved successfully!");
 });
 
-$("transactionForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  if (!currentUser) return message("Please log in first.", true);
-
-  const amount = Number($("amount").value);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return message("Enter an amount greater than zero.", true);
-  }
-
-  message("Saving transaction...");
-  const record = {
-    user_id: currentUser.id,
-    type: $("type").value,
-    amount,
-    category: $("category").value,
-    note: $("note").value.trim(),
-    transaction_date: $("date").value
-  };
-
-  const { error } = await db.from("transactions").insert(record);
-  if (error) return message(error.message, true);
-
-  $("amount").value = "";
-  $("note").value = "";
-  await loadTransactions();
-  message("Transaction saved!");
-});
-
-async function loadTransactions() {
-  if (!currentUser) return;
-  $("transactions").textContent = "Loading transactions...";
-
-  const { data, error } = await db
-    .from("transactions")
-    .select("id,type,amount,category,note,transaction_date,created_at")
-    .eq("user_id", currentUser.id)
-    .order("transaction_date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    $("transactions").textContent = "Could not load transactions.";
-    return message(error.message, true);
-  }
-
-  transactions = data || [];
-  renderTransactions();
-}
-
-function renderTransactions() {
-  const income = transactions
-    .filter(t => t.type === "income")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-  const expense = transactions
-    .filter(t => t.type === "expense")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  $("totalIncome").textContent = money(income);
-  $("totalExpense").textContent = money(expense);
-  $("balance").textContent = money(income - expense);
-
-  const container = $("transactions");
-  container.replaceChildren();
-
-  if (!transactions.length) {
-    container.textContent = "No transactions yet. Add your first one above.";
-    return;
-  }
-
-  transactions.forEach(t => {
-    const row = document.createElement("div");
-    row.className = "row";
-
-    const details = document.createElement("div");
-    const title = document.createElement("strong");
-    title.textContent = t.category + (t.note ? " · " + t.note : "");
-    const date = document.createElement("p");
-    date.textContent = t.transaction_date;
-
-    details.append(title, date);
-
-    const right = document.createElement("div");
-    right.style.textAlign = "right";
-
-    const value = document.createElement("strong");
-    value.className = t.type === "income" ? "income" : "expense";
-    value.textContent = (t.type === "income" ? "+" : "-") + money(Number(t.amount));
-
-    const del = document.createElement("button");
-    del.className = "delete";
-    del.textContent = "Delete";
-    del.addEventListener("click", async () => {
-      if (!confirm("Delete this transaction?")) return;
-      const { error } = await db.from("transactions").delete().eq("id", t.id);
-      if (error) return message(error.message, true);
-      await loadTransactions();
-      message("Transaction deleted.");
-    });
-
-    right.append(value, document.createElement("br"), del);
-    row.append(details, right);
-    container.append(row);
+async function load(){
+ if(!user)return;
+ $("history").textContent="Loading...";
+ const {data,error}=await db.from("transactions")
+  .select("id,type,amount,category,note,transaction_date")
+  .eq("user_id",user.id)
+  .order("transaction_date",{ascending:false});
+ if(error){say(error.message);$("history").textContent="Could not load transactions.";return}
+ const items=data||[];
+ const inc=items.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0);
+ const exp=items.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0);
+ $("income").textContent=money(inc);
+ $("expenses").textContent=money(exp);
+ $("balance").textContent=money(inc-exp);
+ const h=$("history");h.replaceChildren();
+ if(!items.length){h.textContent="No transactions yet.";return}
+ items.forEach(x=>{
+  const row=document.createElement("div");row.className="entry";
+  const left=document.createElement("div");
+  const title=document.createElement("strong");
+  title.textContent=x.category+(x.note?" · "+x.note:"");
+  const date=document.createElement("small");date.textContent=x.transaction_date;
+  left.append(title,date);
+  const right=document.createElement("div");
+  const amount=document.createElement("strong");
+  amount.className=x.type==="income"?"income":"expense";
+  amount.textContent=(x.type==="income"?"+":"-")+money(x.amount);
+  const del=document.createElement("button");
+  del.type="button";del.textContent="Delete";
+  del.style.cssText="width:auto;padding:7px;margin-top:7px;background:#ffeded;color:#a11";
+  del.addEventListener("click",async()=>{
+   if(!confirm("Delete this transaction?"))return;
+   del.disabled=true;
+   const {error}=await db.from("transactions").delete().eq("id",x.id);
+   if(error){del.disabled=false;say(error.message);return}
+   await load();say("Transaction deleted.");
   });
+  right.append(amount,del);row.append(left,right);h.append(row);
+ });
 }
 
-db.auth.onAuthStateChange((_event, session) => {
-  if (session?.user) {
-    showApp(session.user);
-  } else {
-    showLogin();
-  }
+db.auth.onAuthStateChange((event,session)=>{
+ if(session?.user)show(session.user);
+ else if(event==="SIGNED_OUT")loggedOut();
+});
+
+db.auth.getSession().then(({data,error})=>{
+ if(error){say(error.message);return}
+ if(data.session?.user)show(data.session.user);
+ else loggedOut();
 });
 </script>
 </body>
