@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My Hisab Kitab</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--ink:#172033;--muted:#738096;--blue:#315bea;--green:#138653;--red:#d74747;--line:#e7ebf3}
 *{box-sizing:border-box}
@@ -40,16 +42,11 @@ input,select{width:100%;padding:11px;border:1px solid #dce2ed;border-radius:9px;
 .formgrid .wide{grid-column:1/-1}
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
 .status{font-size:13px;margin-top:10px;overflow-wrap:anywhere}
-.chart{display:flex;flex-direction:column;gap:13px}
-.chartrow{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;font-size:12px}
-.bartrack{display:flex;height:20px;gap:3px;background:#f0f2f8;border-radius:5px;overflow:hidden}
-.bar-income{background:#20a36a;height:100%;min-width:0}
-.bar-expense{background:#e25b5b;height:100%;min-width:0}
+.graph-wrap{position:relative;width:100%;height:260px;min-width:0}
+.graph-wrap.pie{height:280px;max-width:440px;margin:0 auto}
+.graph-note{font-size:12px;color:var(--muted);margin-top:8px}
 .legend{display:flex;gap:15px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:12px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
-.catrow{display:grid;grid-template-columns:minmax(70px,1fr) 2fr auto;gap:8px;align-items:center;margin:13px 0;font-size:12px}
-.cattrack{height:8px;background:#edf0f6;border-radius:9px;overflow:hidden}
-.catbar{height:100%;background:var(--blue);border-radius:9px}
 .tablewrap{overflow-x:auto;width:100%}
 table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
 th,td{text-align:left;padding:12px 9px;border-bottom:1px solid var(--line)}
@@ -65,18 +62,39 @@ td.note{white-space:normal;min-width:100px}
 .actions{display:flex;gap:6px;align-items:center}
 .actions button{padding:8px 10px}
 .actioncol{min-width:150px}
-@media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}}
-@media(max-width:480px){.layout{padding:12px}.card{padding:14px}.stat{padding:13px}.stat-value{font-size:19px}h1{font-size:20px}.formgrid{grid-template-columns:1fr}.formgrid .wide{grid-column:auto}.filters{grid-template-columns:1fr 1fr}.filters .searchwide{grid-column:1/-1}}
+@media(max-width:800px){
+.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.two{grid-template-columns:1fr}
+.filters{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+.layout{padding:12px}
+.card{padding:14px}
+.stat{padding:13px}
+.stat-value{font-size:19px}
+h1{font-size:20px}
+.formgrid{grid-template-columns:1fr}
+.formgrid .wide{grid-column:auto}
+.filters{grid-template-columns:1fr 1fr}
+.filters .searchwide{grid-column:1/-1}
+.graph-wrap{height:230px}
+}
 </style>
 </head>
 <body>
 <div class="layout">
+
 <section id="authPanel" class="card auth">
-  <div class="brand"><div class="logo">₹</div><div><h1>My Hisab Kitab</h1><div class="muted">Your personal finance tracker</div></div></div>
+  <div class="brand">
+    <div class="logo">₹</div>
+    <div><h1>My Hisab Kitab</h1><div class="muted">Your personal finance tracker</div></div>
+  </div>
   <h2 id="authHeading" style="margin-top:24px">Login to your account</h2>
   <form id="authForm">
-    <label for="email">Email</label><input id="email" type="email" autocomplete="email" required>
-    <label for="password">Password</label><input id="password" type="password" minlength="6" autocomplete="current-password" required>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" minlength="6" autocomplete="current-password" required>
     <button id="authSubmit" class="full" type="submit">Login</button>
   </form>
   <button id="authSwitch" class="secondary full" type="button">Create a new account</button>
@@ -85,13 +103,23 @@ td.note{white-space:normal;min-width:100px}
 
 <main id="mainApp" class="hidden">
 <header>
-  <div class="brand"><div class="logo">₹</div><div><h1>My Hisab Kitab</h1><div class="muted">Your money, all in one place</div></div></div>
+  <div class="brand">
+    <div class="logo">₹</div>
+    <div><h1>My Hisab Kitab</h1><div class="muted">Your money, all in one place</div></div>
+  </div>
   <button id="logoutBtn" class="secondary" type="button">Logout</button>
 </header>
 
 <div class="row" style="margin-bottom:15px">
   <div><h2 style="margin-bottom:4px">Dashboard</h2><div id="welcome" class="muted"></div></div>
-  <div style="min-width:145px"><label for="summaryCurrency" style="margin-top:0">Dashboard currency</label><select id="summaryCurrency"><option value="ZMW">ZMW</option><option value="INR">INR</option><option value="USD">USD</option></select></div>
+  <div style="min-width:145px">
+    <label for="summaryCurrency" style="margin-top:0">Dashboard currency</label>
+    <select id="summaryCurrency">
+      <option value="ZMW">ZMW</option>
+      <option value="INR">INR</option>
+      <option value="USD">USD</option>
+    </select>
+  </div>
 </div>
 
 <nav class="bottomnav">
@@ -102,27 +130,48 @@ td.note{white-space:normal;min-width:100px}
 </nav>
 
 <section id="overview">
-  <div class="grid">
-    <div class="card stat"><div class="stat-label">Total Income</div><div id="totalIncome" class="stat-value green">0</div><div class="muted">All-time</div></div>
-    <div class="card stat"><div class="stat-label">Total Expenses</div><div id="totalExpense" class="stat-value red">0</div><div class="muted">All-time</div></div>
-    <div class="card stat"><div class="stat-label">Net Balance</div><div id="netBalance" class="stat-value blue">0</div><div class="muted">Income minus expenses</div></div>
-    <div class="card stat"><div class="stat-label">Transactions</div><div id="totalCount" class="stat-value">0</div><div class="muted">All-time records</div></div>
-  </div>
+<div class="grid">
+  <div class="card stat"><div class="stat-label">Total Income</div><div id="totalIncome" class="stat-value green">0</div><div class="muted">All-time</div></div>
+  <div class="card stat"><div class="stat-label">Total Expenses</div><div id="totalExpense" class="stat-value red">0</div><div class="muted">All-time</div></div>
+  <div class="card stat"><div class="stat-label">Net Balance</div><div id="netBalance" class="stat-value blue">0</div><div class="muted">Income minus expenses</div></div>
+  <div class="card stat"><div class="stat-label">Transactions</div><div id="totalCount" class="stat-value">0</div><div class="muted">All-time records</div></div>
+</div>
 </section>
 
 <section class="two">
   <div class="card">
     <div class="row"><h2>Monthly overview</h2><span class="muted">Last 6 months</span></div>
-    <div class="legend"><span><i class="dot" style="background:#20a36a"></i>Income</span><span><i class="dot" style="background:#e25b5b"></i>Expenses</span></div>
-    <div id="monthlyChart" class="chart"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#20a36a"></i>Income</span>
+      <span><i class="dot" style="background:#e25b5b"></i>Expenses</span>
+    </div>
+    <div class="graph-wrap"><canvas id="monthlyChart" aria-label="Monthly income and expenses bar chart"></canvas></div>
+    <div class="graph-note">Actual saved records · last 6 months</div>
   </div>
-  <div class="card" id="reportsSection"><h2>Expense categories</h2><div class="muted">All-time, selected currency</div><div id="categoryChart" style="margin-top:16px"></div></div>
+  <div class="card" id="reportsSection">
+    <h2>Expense categories</h2>
+    <div class="muted">All-time, selected currency</div>
+    <div class="graph-wrap pie" style="margin-top:12px"><canvas id="categoryChart" aria-label="Expense category chart"></canvas></div>
+    <div id="categoryEmpty" class="empty hidden">No expense categories yet.</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="row"><h2>Monthly trend</h2><span class="muted">Income vs expenses</span></div>
+  <div class="graph-wrap"><canvas id="trendChart" aria-label="Monthly income and expense line chart"></canvas></div>
+  <div class="graph-note">Charts update when you add, edit, or delete a transaction.</div>
 </section>
 
 <section class="two">
   <div class="card" id="addSection">
-    <div class="row"><h2 id="formHeading">Add transaction</h2><button id="cancelEditBtn" type="button" class="secondary hidden">Cancel edit</button></div>
-    <div class="tabs"><button type="button" id="expenseTab" class="selected">Expense</button><button type="button" id="incomeTab" class="secondary">Income</button></div>
+    <div class="row">
+      <h2 id="formHeading">Add transaction</h2>
+      <button id="cancelEditBtn" type="button" class="secondary hidden">Cancel edit</button>
+    </div>
+    <div class="tabs">
+      <button type="button" id="expenseTab" class="selected">Expense</button>
+      <button type="button" id="incomeTab" class="secondary">Income</button>
+    </div>
     <form id="transactionForm">
       <div class="formgrid">
         <div><label for="txDate">Date</label><input id="txDate" type="date" required></div>
@@ -139,11 +188,19 @@ td.note{white-space:normal;min-width:100px}
       <div id="saveMessage" class="status" role="status"></div>
     </form>
   </div>
-  <div class="card"><h2>Account breakdown</h2><div class="muted">All-time totals for selected currency</div><div id="accountBreakdown" style="margin-top:12px"></div></div>
+
+  <div class="card">
+    <h2>Account breakdown</h2>
+    <div class="muted">All-time totals for selected currency</div>
+    <div id="accountBreakdown" style="margin-top:12px"></div>
+  </div>
 </section>
 
 <section id="historySection" class="card">
-  <div class="row"><div><h2 style="margin-bottom:5px">All transactions</h2><div id="recordCount" class="muted">All-time records</div></div><button id="exportBtn" type="button" class="secondary">Export CSV</button></div>
+  <div class="row">
+    <div><h2 style="margin-bottom:5px">All transactions</h2><div id="recordCount" class="muted">All-time records</div></div>
+    <button id="exportBtn" type="button" class="secondary">Export CSV</button>
+  </div>
   <div class="filters" style="margin:16px 0">
     <div class="searchwide"><label for="search">Search</label><input id="search" placeholder="Search notes, category or receiver"></div>
     <div><label for="filterKind">Type</label><select id="filterKind"><option value="all">All types</option><option value="income">Income</option><option value="expense">Expense</option></select></div>
@@ -154,9 +211,15 @@ td.note{white-space:normal;min-width:100px}
     <div><label for="filterCategory">Category</label><select id="filterCategory"><option value="all">All categories</option></select></div>
     <div style="align-self:end"><button id="clearFilters" class="secondary" type="button" style="width:100%">Clear filters</button></div>
   </div>
-  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Category / Note / Receiver</th><th>Account</th><th>Amount</th><th>Action</th></tr></thead><tbody id="transactionRows"></tbody></table></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Category / Note / Receiver</th><th>Account</th><th>Amount</th><th>Action</th></tr></thead>
+      <tbody id="transactionRows"></tbody>
+    </table>
+  </div>
   <div id="historyMessage" class="empty hidden"></div>
 </section>
+
 <div class="muted" style="text-align:center;padding:8px 0 24px">Your private finance dashboard · Records are stored in your Supabase project</div>
 </main>
 </div>
@@ -168,17 +231,37 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 let user=null,authMode="login",kind="expense",records=[],loading=false,editingRecordId=null;
 
-function localDate(d=new Date()){const offset=d.getTimezoneOffset()*60000;return new Date(d.getTime()-offset).toISOString().slice(0,10)}
+function localDate(d=new Date()){
+  const offset=d.getTimezoneOffset()*60000;
+  return new Date(d.getTime()-offset).toISOString().slice(0,10);
+}
 $("txDate").value=localDate();
 
-function message(id,text,error=false){$(id).textContent=text;$(id).style.color=error?"#c0392b":"#138653"}
-function money(amount,currency){return new Intl.NumberFormat("en",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(amount||0))+" "+currency}
-function setKind(value){kind=value;$("expenseTab").className=kind==="expense"?"selected":"secondary";$("incomeTab").className=kind==="income"?"selected":"secondary";$("saveBtn").textContent=editingRecordId?"Update transaction":"Save "+kind}
-
+function message(id,text,error=false){
+  $(id).textContent=text;
+  $(id).style.color=error?"#c0392b":"#138653";
+}
+function money(amount,currency){
+  return new Intl.NumberFormat("en",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(amount||0))+" "+currency;
+}
+function setKind(value){
+  kind=value;
+  $("expenseTab").className=kind==="expense"?"selected":"secondary";
+  $("incomeTab").className=kind==="income"?"selected":"secondary";
+  $("saveBtn").textContent=editingRecordId?"Update transaction":"Save "+kind;
+}
 $("expenseTab").addEventListener("click",()=>setKind("expense"));
 $("incomeTab").addEventListener("click",()=>setKind("income"));
 
-function cancelEdit(){editingRecordId=null;$("transactionForm").reset();$("txDate").value=localDate();$("formHeading").textContent="Add transaction";$("cancelEditBtn").classList.add("hidden");setKind("expense");message("saveMessage","")}
+function cancelEdit(){
+  editingRecordId=null;
+  $("transactionForm").reset();
+  $("txDate").value=localDate();
+  $("formHeading").textContent="Add transaction";
+  $("cancelEditBtn").classList.add("hidden");
+  setKind("expense");
+  message("saveMessage","");
+}
 $("cancelEditBtn").addEventListener("click",cancelEdit);
 
 function editRecord(r){
@@ -215,12 +298,17 @@ $("authForm").addEventListener("submit",async e=>{
   message("authMessage","Please wait...");
   try{
     const email=$("email").value.trim(),password=$("password").value;
-    const result=authMode==="signup"?await db.auth.signUp({email,password}):await db.auth.signInWithPassword({email,password});
+    const result=authMode==="signup"
+      ?await db.auth.signUp({email,password})
+      :await db.auth.signInWithPassword({email,password});
     if(result.error)throw result.error;
     if(result.data.session)await showApp(result.data.session.user);
     else message("authMessage","Account created/request received. Check your email for confirmation, then log in.");
-  }catch(err){message("authMessage",err.message,true)}
-  finally{btn.disabled=false}
+  }catch(err){
+    message("authMessage",err.message,true);
+  }finally{
+    btn.disabled=false;
+  }
 });
 
 async function showApp(nextUser){
@@ -261,11 +349,13 @@ async function loadRecords(){
   }catch(err){
     $("historyMessage").textContent="Could not load records: "+err.message;
     $("historyMessage").classList.remove("hidden");
-  }finally{loading=false}
+  }finally{
+    loading=false;
+  }
 }
 
-function dateOf(r){return r.tx_date||r.transaction_date||""}
-function categoryOf(r){return(r.category||"").trim()||"Uncategorized"}
+function dateOf(r){return r.tx_date||r.transaction_date||"";}
+function categoryOf(r){return(r.category||"").trim()||"Uncategorized";}
 
 function updateCategoryFilter(){
   const select=$("filterCategory"),old=select.value;
@@ -273,7 +363,8 @@ function updateCategoryFilter(){
   select.innerHTML='<option value="all">All categories</option>';
   categories.forEach(cat=>{
     const opt=document.createElement("option");
-    opt.value=cat;opt.textContent=cat;select.appendChild(opt);
+    opt.value=cat;opt.textContent=cat;
+    select.appendChild(opt);
   });
   if(categories.includes(old))select.value=old;
 }
@@ -293,9 +384,16 @@ function renderDashboard(){
   renderAccounts(curr,currency);
 }
 
-function renderMonthly(rows,currency){
-  const container=$("monthlyChart");
-  container.innerHTML="";
+let monthlyBarInstance=null,trendLineInstance=null,categoryPieInstance=null;
+const chartColors={
+  income:"#20a36a",expense:"#e25b5b",blue:"#315bea",
+  palette:["#315bea","#20a36a","#e25b5b","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#64748b","#84cc16","#f97316"]
+};
+function chartCurrencyValue(value,currency){
+  return new Intl.NumberFormat("en",{maximumFractionDigits:0}).format(Number(value||0))+" "+currency;
+}
+
+function getMonthlyData(rows){
   const now=new Date(),months=[];
   for(let i=5;i>=0;i--){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
@@ -305,82 +403,152 @@ function renderMonthly(rows,currency){
   const lookup=Object.fromEntries(months.map(m=>[m.key,m]));
   rows.forEach(r=>{
     const key=dateOf(r).slice(0,7);
-    if(lookup[key]&&(r.kind==="income"||r.kind==="expense"))lookup[key][r.kind]+=Number(r.amount);
+    if(lookup[key]&&(r.kind==="income"||r.kind==="expense"))
+      lookup[key][r.kind]+=Number(r.amount)||0;
   });
-  const max=Math.max(1,...months.flatMap(m=>[m.income,m.expense]));
-  months.forEach(m=>{
-    const row=document.createElement("div");row.className="chartrow";
-    const label=document.createElement("div");label.textContent=m.label;
-    const bars=document.createElement("div");bars.className="chart";bars.style.gap="4px";
-    [[m.income,"bar-income"],[m.expense,"bar-expense"]].forEach(([val,cls])=>{
-      const line=document.createElement("div");line.className="bartrack";
-      const bar=document.createElement("div");bar.className=cls;
-      bar.style.width=(Number(val)/max*100)+"%";
-      line.appendChild(bar);bars.appendChild(line);
-    });
-    row.append(label,bars);container.appendChild(row);
+  return months;
+}
+
+function chartBaseOptions(currency){
+  return {
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:"index",intersect:false},
+    plugins:{
+      legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:8,padding:16}},
+      tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+chartCurrencyValue(ctx.parsed.y,currency)}}
+    },
+    scales:{
+      x:{grid:{display:false},ticks:{maxRotation:0}},
+      y:{
+        beginAtZero:true,
+        grid:{color:"rgba(120,130,150,.14)"},
+        ticks:{callback:value=>new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(value)}
+      }
+    }
+  };
+}
+
+function renderMonthly(rows,currency){
+  const months=getMonthlyData(rows);
+  const labels=months.map(m=>m.label);
+  const income=months.map(m=>m.income);
+  const expense=months.map(m=>m.expense);
+
+  if(monthlyBarInstance)monthlyBarInstance.destroy();
+  monthlyBarInstance=new Chart($("monthlyChart"),{
+    type:"bar",
+    data:{
+      labels,
+      datasets:[
+        {label:"Income",data:income,backgroundColor:chartColors.income,borderRadius:5,maxBarThickness:24},
+        {label:"Expenses",data:expense,backgroundColor:chartColors.expense,borderRadius:5,maxBarThickness:24}
+      ]
+    },
+    options:chartBaseOptions(currency)
   });
-  const note=document.createElement("div");note.className="muted";
-  note.textContent="Income and expense bars are shown separately. Amounts: "+currency;
-  container.appendChild(note);
+
+  if(trendLineInstance)trendLineInstance.destroy();
+  trendLineInstance=new Chart($("trendChart"),{
+    type:"line",
+    data:{
+      labels,
+      datasets:[
+        {label:"Income",data:income,borderColor:chartColors.income,backgroundColor:"rgba(32,163,106,.12)",fill:true,tension:.35,pointRadius:3,pointHoverRadius:5},
+        {label:"Expenses",data:expense,borderColor:chartColors.expense,backgroundColor:"rgba(226,91,91,.08)",fill:false,tension:.35,pointRadius:3,pointHoverRadius:5}
+      ]
+    },
+    options:chartBaseOptions(currency)
+  });
 }
 
 function renderCategories(rows,currency){
-  const container=$("categoryChart");container.innerHTML="";
   const totals={};
   rows.filter(r=>r.kind==="expense").forEach(r=>{
-    const cat=categoryOf(r);totals[cat]=(totals[cat]||0)+Number(r.amount);
+    const cat=categoryOf(r);
+    totals[cat]=(totals[cat]||0)+(Number(r.amount)||0);
   });
-  const list=Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  if(!list.length){container.textContent="No expense categories yet.";container.className="empty";return}
-  container.className="";
-  const max=Math.max(...list.map(x=>x[1]),1);
-  list.forEach(([cat,val])=>{
-    const row=document.createElement("div");row.className="catrow";
-    const name=document.createElement("div");name.textContent=cat;
-    const track=document.createElement("div");track.className="cattrack";
-    const bar=document.createElement("div");bar.className="catbar";
-    bar.style.width=(val/max*100)+"%";
-    track.appendChild(bar);
-    const amount=document.createElement("div");amount.textContent=money(val,currency);
-    row.append(name,track,amount);container.appendChild(row);
+  const list=Object.entries(totals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const canvas=$("categoryChart"),empty=$("categoryEmpty");
+  if(categoryPieInstance){categoryPieInstance.destroy();categoryPieInstance=null;}
+  if(!list.length){
+    canvas.classList.add("hidden");
+    empty.classList.remove("hidden");
+    return;
+  }
+  canvas.classList.remove("hidden");
+  empty.classList.add("hidden");
+  categoryPieInstance=new Chart(canvas,{
+    type:"doughnut",
+    data:{
+      labels:list.map(([cat])=>cat),
+      datasets:[{
+        data:list.map(([,val])=>val),
+        backgroundColor:list.map((_,i)=>chartColors.palette[i%chartColors.palette.length]),
+        borderColor:"#fff",borderWidth:3,hoverOffset:6
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:"58%",
+      plugins:{
+        legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:8,padding:12}},
+        tooltip:{
+          callbacks:{
+            label:ctx=>{
+              const total=ctx.dataset.data.reduce((a,b)=>a+Number(b||0),0);
+              const v=Number(ctx.parsed||0),pct=total?v/total*100:0;
+              return ctx.label+": "+chartCurrencyValue(v,currency)+" ("+pct.toFixed(1)+"%)";
+            }
+          }
+        }
+      }
+    }
   });
 }
 
 function renderAccounts(rows,currency){
-  const container=$("accountBreakdown");container.innerHTML="";
+  const container=$("accountBreakdown");
+  container.innerHTML="";
   ["cash","bank","home"].forEach(account=>{
     const group=rows.filter(r=>r.account===account);
     const inc=group.filter(r=>r.kind==="income").reduce((s,r)=>s+Number(r.amount),0);
     const exp=group.filter(r=>r.kind==="expense").reduce((s,r)=>s+Number(r.amount),0);
     const row=document.createElement("div");
-    row.style.padding="12px 0";row.style.borderBottom="1px solid var(--line)";
+    row.style.padding="12px 0";
+    row.style.borderBottom="1px solid var(--line)";
     const top=document.createElement("div");top.className="row";
     const name=document.createElement("strong");
     name.textContent=account.charAt(0).toUpperCase()+account.slice(1);
-    const net=document.createElement("strong");net.textContent=money(inc-exp,currency);
+    const net=document.createElement("strong");
+    net.textContent=money(inc-exp,currency);
     net.className=inc-exp<0?"red":"green";
     top.append(name,net);
-    const detail=document.createElement("div");detail.className="muted";detail.style.marginTop="6px";
+    const detail=document.createElement("div");
+    detail.className="muted";detail.style.marginTop="6px";
     detail.textContent="Income "+money(inc,currency)+" · Expenses "+money(exp,currency);
     row.append(top,detail);container.appendChild(row);
   });
 }
 
 function filteredRecords(){
-  const search=$("search").value.trim().toLowerCase(),kindFilter=$("filterKind").value;
-  const account=$("filterAccount").value,currency=$("filterCurrency").value;
-  const category=$("filterCategory").value,from=$("dateFrom").value,to=$("dateTo").value;
+  const search=$("search").value.trim().toLowerCase();
+  const kindFilter=$("filterKind").value,account=$("filterAccount").value;
+  const currency=$("filterCurrency").value,category=$("filterCategory").value;
+  const from=$("dateFrom").value,to=$("dateTo").value;
   return records.filter(r=>{
-    const hay=[r.note,r.category,r.account,r.kind,r.currency,r.receiver_name,r.receiver_phone].join(" ").toLowerCase(),d=dateOf(r);
-    return(!search||hay.includes(search))&&(kindFilter==="all"||r.kind===kindFilter)&&
-      (account==="all"||r.account===account)&&(currency==="all"||r.currency===currency)&&
-      (category==="all"||categoryOf(r)===category)&&(!from||d>=from)&&(!to||d<=to);
+    const hay=[r.note,r.category,r.account,r.kind,r.currency,r.receiver_name,r.receiver_phone].join(" ").toLowerCase();
+    const d=dateOf(r);
+    return(!search||hay.includes(search))&&
+      (kindFilter==="all"||r.kind===kindFilter)&&
+      (account==="all"||r.account===account)&&
+      (currency==="all"||r.currency===currency)&&
+      (category==="all"||categoryOf(r)===category)&&
+      (!from||d>=from)&&(!to||d<=to);
   });
 }
 
 function renderHistory(){
-  const tbody=$("transactionRows");tbody.innerHTML="";
+  const tbody=$("transactionRows");
+  tbody.innerHTML="";
   const rows=filteredRecords();
   $("recordCount").textContent=rows.length+" matching records · "+records.length+" total";
   $("historyMessage").classList.toggle("hidden",rows.length>0);
@@ -396,7 +564,8 @@ function renderHistory(){
     const description=document.createElement("td");description.className="note";
     description.textContent=categoryOf(r)+(r.note?" · "+r.note:"")+(r.receiver_name?" · To: "+r.receiver_name:"")+(r.receiver_phone?" ("+r.receiver_phone+")":"");
     const account=document.createElement("td");account.textContent=r.account||"—";
-    const amount=document.createElement("td");amount.className="amount "+(r.kind==="income"?"green":"red");
+    const amount=document.createElement("td");
+    amount.className="amount "+(r.kind==="income"?"green":"red");
     amount.textContent=(r.kind==="income"?"+ ":"− ")+money(r.amount,r.currency);
     const action=document.createElement("td");action.className="actioncol";
     const actions=document.createElement("div");actions.className="actions";
@@ -405,7 +574,8 @@ function renderHistory(){
     const del=document.createElement("button");del.type="button";del.className="danger";del.textContent="Delete";
     del.addEventListener("click",()=>deleteRecord(r));
     actions.append(edit,del);action.appendChild(actions);
-    tr.append(date,type,description,account,amount,action);tbody.appendChild(tr);
+    tr.append(date,type,description,account,amount,action);
+    tbody.appendChild(tr);
   });
 }
 
@@ -420,14 +590,16 @@ $("transactionForm").addEventListener("submit",async e=>{
   message("saveMessage",wasEditing?"Updating transaction...":"Saving transaction...");
   try{
     const record={
-      tx_date:date,kind,amount,currency:$("currency").value,account:$("account").value,
-      transfer_to:null,note:$("note").value.trim(),
+      tx_date:date,kind,amount,currency:$("currency").value,
+      account:$("account").value,transfer_to:null,
+      note:$("note").value.trim(),
       category:$("category").value.trim()||null,
       receiver_name:$("receiverName").value.trim()||null,
       receiver_phone:$("receiverPhone").value.replace(/\D/g,"")||null
     };
     if(wasEditing){
-      const {data,error}=await db.from("transactions").update(record).eq("id",editingRecordId).eq("user_id",user.id).select("id");
+      const {data,error}=await db.from("transactions").update(record)
+        .eq("id",editingRecordId).eq("user_id",user.id).select("id");
       if(error)throw error;
       if(!data||!data.length)throw new Error("No row updated. Check Supabase UPDATE policy.");
       cancelEdit();message("saveMessage","Transaction updated successfully!");
@@ -438,8 +610,9 @@ $("transactionForm").addEventListener("submit",async e=>{
       message("saveMessage","Transaction saved successfully!");
     }
     await loadRecords();
-  }catch(err){message("saveMessage",(wasEditing?"Update error: ":"Save error: ")+err.message,true)}
-  finally{btn.disabled=false}
+  }catch(err){
+    message("saveMessage",(wasEditing?"Update error: ":"Save error: ")+err.message,true);
+  }finally{btn.disabled=false;}
 });
 
 async function deleteRecord(r){
@@ -447,14 +620,17 @@ async function deleteRecord(r){
   const description=categoryOf(r)+" · "+money(r.amount,r.currency);
   if(!confirm("Delete this transaction?\n\n"+description+"\n\nThis cannot be undone."))return;
   try{
-    const {data,error}=await db.from("transactions").delete().eq("id",r.id).eq("user_id",user.id).select("id");
+    const {data,error}=await db.from("transactions").delete()
+      .eq("id",r.id).eq("user_id",user.id).select("id");
     if(error)throw error;
     if(!data||!data.length)throw new Error("No row deleted. Check Supabase DELETE policy.");
     if(String(editingRecordId)===String(r.id))cancelEdit();
     records=records.filter(item=>String(item.id)!==String(r.id));
     updateCategoryFilter();renderDashboard();renderHistory();
     message("saveMessage","Transaction deleted successfully.");
-  }catch(err){alert("Could not delete record: "+err.message+"\n\nCheck your Supabase RLS DELETE policy.")}
+  }catch(err){
+    alert("Could not delete record: "+err.message+"\n\nCheck your Supabase RLS DELETE policy.");
+  }
 }
 
 $("sendMoneyBtn").addEventListener("click",async()=>{
@@ -489,7 +665,7 @@ $("sendMoneyBtn").addEventListener("click",async()=>{
   }catch(err){
     if(waWindow&&!waWindow.closed)waWindow.close();
     message("saveMessage","Could not save expense: "+err.message,true);
-  }finally{btn.disabled=false}
+  }finally{btn.disabled=false;}
 });
 
 function csvCell(value){
@@ -497,40 +673,53 @@ function csvCell(value){
   if(/^[=+\-@\t\r]/.test(s))s="'"+s;
   return'"'+s.replace(/"/g,'""')+'"';
 }
+
 $("exportBtn").addEventListener("click",()=>{
   const rows=filteredRecords();
   if(!rows.length)return alert("No records to export.");
   const columns=["Date","Type","Amount","Currency","Account","Category","Note","Receiver name","Receiver phone"];
   const lines=[columns.map(csvCell).join(",")];
   rows.forEach(r=>lines.push([dateOf(r),r.kind,r.amount,r.currency,r.account,categoryOf(r),r.note,r.receiver_name,r.receiver_phone].map(csvCell).join(",")));
-  const blob=new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+  const blob=new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download="my-hisab-kitab-"+localDate()+".csv";
   document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 });
 
-["search","filterKind","filterAccount","filterCurrency","filterCategory","dateFrom","dateTo"].forEach(id=>$(id).addEventListener(id==="search"?"input":"change",renderHistory));
+["search","filterKind","filterAccount","filterCurrency","filterCategory","dateFrom","dateTo"]
+.forEach(id=>$(id).addEventListener(id==="search"?"input":"change",renderHistory));
+
 $("clearFilters").addEventListener("click",()=>{
   $("search").value="";$("filterKind").value="all";$("filterAccount").value="all";
   $("filterCurrency").value="all";$("filterCategory").value="all";
-  $("dateFrom").value="";$("dateTo").value="";renderHistory();
+  $("dateFrom").value="";$("dateTo").value="";
+  renderHistory();
 });
+
 $("summaryCurrency").addEventListener("change",renderDashboard);
-document.querySelectorAll("[data-jump]").forEach(btn=>btn.addEventListener("click",()=>{
-  const target=$(btn.dataset.jump);
-  if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
-}));
+document.querySelectorAll("[data-jump]").forEach(btn=>
+  btn.addEventListener("click",()=>{
+    const target=$(btn.dataset.jump);
+    if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
+  })
+);
+
 db.auth.onAuthStateChange((event,session)=>{
   if(event==="SIGNED_OUT"){
     user=null;records=[];editingRecordId=null;
-    $("mainApp").classList.add("hidden");$("authPanel").classList.remove("hidden");
+    $("mainApp").classList.add("hidden");
+    $("authPanel").classList.remove("hidden");
   }
 });
+
 (async function init(){
   try{
     const {data,error}=await db.auth.getSession();
     if(error)throw error;
     if(data.session)await showApp(data.session.user);
-  }catch(err){message("authMessage",err.message,true)}
+  }catch(err){
+    message("authMessage",err.message,true);
+  }
 })();
 </script>
 </body>
