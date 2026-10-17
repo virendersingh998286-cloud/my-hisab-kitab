@@ -31,13 +31,13 @@ p{line-height:1.5}
 label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
 input,select{width:100%;padding:11px;border:1px solid #dce2ed;border-radius:9px;background:white;color:var(--ink);min-width:0}
 button{border:0;border-radius:9px;padding:11px 14px;background:var(--blue);color:white;font-weight:600}
-button:disabled{opacity:.55}
+button:disabled{opacity:.55;cursor:not-allowed}
 .secondary{background:#edf1fc;color:#2948a6}
 .danger{background:#fff0f0;color:#b42323}
 .full{width:100%;margin-top:15px}
 .tabs{display:flex;gap:8px;margin-bottom:12px}
 .tabs button{flex:1}
-.tabs .selected{background:var(--green)}
+.tabs .selected{background:var(--green);color:white}
 .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .formgrid .wide{grid-column:1/-1}
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
@@ -65,6 +65,8 @@ td.note{white-space:normal;min-width:100px}
 .auth{max-width:440px;margin:50px auto}
 .bottomnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 .bottomnav button{flex:1;min-width:100px}
+.actions{display:flex;gap:6px;align-items:center}
+.actions button{padding:8px 10px}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.layout{padding:12px}.card{padding:14px}.stat{padding:13px}.stat-value{font-size:19px}h1{font-size:20px}.formgrid{grid-template-columns:1fr}.formgrid .wide{grid-column:auto}.filters{grid-template-columns:1fr 1fr}.filters .searchwide{grid-column:1/-1}}
 </style>
@@ -142,7 +144,10 @@ td.note{white-space:normal;min-width:100px}
 
     <section class="two">
       <div class="card" id="addSection">
-        <h2>Add transaction</h2>
+        <div class="row">
+          <h2 id="formHeading">Add transaction</h2>
+          <button id="cancelEditBtn" type="button" class="secondary hidden">Cancel edit</button>
+        </div>
         <div class="tabs">
           <button type="button" id="expenseTab" class="selected">Expense</button>
           <button type="button" id="incomeTab" class="secondary">Income</button>
@@ -211,32 +216,69 @@ let authMode = "login";
 let kind = "expense";
 let records = [];
 let loading = false;
+let editingRecordId = null;
 
 function localDate(d = new Date()) {
   const offset = d.getTimezoneOffset() * 60000;
   return new Date(d.getTime() - offset).toISOString().slice(0,10);
 }
+
 $("txDate").value = localDate();
 
 function message(id, text, error = false) {
   $(id).textContent = text;
   $(id).style.color = error ? "#c0392b" : "#138653";
 }
+
 function money(amount, currency) {
-  return new Intl.NumberFormat("en", {minimumFractionDigits:2,maximumFractionDigits:2})
-    .format(Number(amount || 0)) + " " + currency;
+  return new Intl.NumberFormat("en", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(amount || 0)) + " " + currency;
 }
-function escapeText(s) {
-  return String(s ?? "");
-}
+
 function setKind(value) {
   kind = value;
   $("expenseTab").className = kind === "expense" ? "selected" : "secondary";
   $("incomeTab").className = kind === "income" ? "selected" : "secondary";
-  $("saveBtn").textContent = "Save " + kind;
+  $("saveBtn").textContent = editingRecordId
+    ? "Update transaction"
+    : "Save " + kind;
 }
+
 $("expenseTab").addEventListener("click", () => setKind("expense"));
 $("incomeTab").addEventListener("click", () => setKind("income"));
+
+function cancelEdit() {
+  editingRecordId = null;
+  $("transactionForm").reset();
+  $("txDate").value = localDate();
+  $("formHeading").textContent = "Add transaction";
+  $("cancelEditBtn").classList.add("hidden");
+  setKind("expense");
+  message("saveMessage", "");
+}
+
+$("cancelEditBtn").addEventListener("click", cancelEdit);
+
+function editRecord(r) {
+  if (!user) return;
+
+  editingRecordId = r.id;
+  $("txDate").value = dateOf(r) || localDate();
+  $("amount").value = r.amount ?? "";
+  $("currency").value = ["ZMW","INR","USD"].includes(r.currency) ? r.currency : "ZMW";
+  $("account").value = ["cash","bank","home"].includes(r.account) ? r.account : "cash";
+  $("category").value = r.category || "";
+  $("note").value = r.note || "";
+
+  setKind(r.kind === "income" ? "income" : "expense");
+  $("formHeading").textContent = "Edit transaction";
+  $("cancelEditBtn").classList.remove("hidden");
+
+  $("addSection").scrollIntoView({behavior:"smooth",block:"start"});
+  message("saveMessage", "Editing selected transaction. Make your changes and press Update.");
+}
 
 $("authSwitch").addEventListener("click", () => {
   authMode = authMode === "login" ? "signup" : "login";
@@ -252,13 +294,16 @@ $("authForm").addEventListener("submit", async e => {
   const btn = $("authSubmit");
   btn.disabled = true;
   message("authMessage", "Please wait...");
+
   try {
     const email = $("email").value.trim();
     const password = $("password").value;
     const result = authMode === "signup"
-      ? await db.auth.signUp({email, password})
-      : await db.auth.signInWithPassword({email, password});
+      ? await db.auth.signUp({email,password})
+      : await db.auth.signInWithPassword({email,password});
+
     if (result.error) throw result.error;
+
     if (result.data.session) {
       await showApp(result.data.session.user);
     } else {
@@ -276,33 +321,40 @@ async function showApp(nextUser) {
   $("authPanel").classList.toggle("hidden", !!user);
   $("mainApp").classList.toggle("hidden", !user);
   if (!user) return;
+
   $("welcome").textContent = user.email || "Logged in";
   await loadRecords();
 }
+
 $("logoutBtn").addEventListener("click", async () => {
   const {error} = await db.auth.signOut();
   if (error) return message("saveMessage", error.message, true);
+
   user = null;
   records = [];
+  editingRecordId = null;
   $("authPanel").classList.remove("hidden");
   $("mainApp").classList.add("hidden");
 });
 
 async function loadRecords() {
   if (!user || loading) return;
+
   loading = true;
   $("historyMessage").classList.add("hidden");
   $("transactionRows").innerHTML = "";
   $("historyMessage").textContent = "Loading records...";
   $("historyMessage").classList.remove("hidden");
+
   try {
-    // RLS remains enabled; the query is also scoped to the signed-in user.
-    const {data, error} = await db.from("transactions")
+    const {data,error} = await db.from("transactions")
       .select("id,user_id,tx_date,kind,amount,currency,account,transfer_to,note,created_at,category,transaction_date,type")
       .eq("user_id", user.id)
       .order("tx_date", {ascending:false})
       .order("created_at", {ascending:false});
+
     if (error) throw error;
+
     records = data || [];
     updateCategoryFilter();
     renderDashboard();
@@ -318,75 +370,105 @@ async function loadRecords() {
 function dateOf(r) {
   return r.tx_date || r.transaction_date || "";
 }
+
 function categoryOf(r) {
   return (r.category || "").trim() || "Uncategorized";
 }
+
 function updateCategoryFilter() {
   const select = $("filterCategory");
   const old = select.value;
-  const categories = [...new Set(records.map(categoryOf))].sort((a,b)=>a.localeCompare(b));
+  const categories = [...new Set(records.map(categoryOf))]
+    .sort((a,b)=>a.localeCompare(b));
+
   select.innerHTML = '<option value="all">All categories</option>';
+
   categories.forEach(cat => {
     const opt = document.createElement("option");
     opt.value = cat;
     opt.textContent = cat;
     select.appendChild(opt);
   });
+
   if (categories.includes(old)) select.value = old;
 }
 
 function renderDashboard() {
   const currency = $("summaryCurrency").value;
   const curr = records.filter(r => r.currency === currency);
-  const income = curr.filter(r => r.kind === "income").reduce((s,r)=>s+Number(r.amount),0);
-  const expense = curr.filter(r => r.kind === "expense").reduce((s,r)=>s+Number(r.amount),0);
+
+  const income = curr.filter(r => r.kind === "income")
+    .reduce((s,r)=>s+Number(r.amount),0);
+  const expense = curr.filter(r => r.kind === "expense")
+    .reduce((s,r)=>s+Number(r.amount),0);
+
   $("totalIncome").textContent = money(income,currency);
   $("totalExpense").textContent = money(expense,currency);
   $("netBalance").textContent = money(income-expense,currency);
   $("netBalance").className = "stat-value " + (income-expense < 0 ? "red" : "blue");
   $("totalCount").textContent = records.length.toLocaleString();
 
-  renderMonthly(curr, currency);
-  renderCategories(curr, currency);
-  renderAccounts(curr, currency);
+  renderMonthly(curr,currency);
+  renderCategories(curr,currency);
+  renderAccounts(curr,currency);
 }
 
 function renderMonthly(rows, currency) {
   const container = $("monthlyChart");
   container.innerHTML = "";
+
   const now = new Date();
   const months = [];
+
   for (let i=5;i>=0;i--) {
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const d = new Date(now.getFullYear(),now.getMonth()-i,1);
     const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-    months.push({key,label:d.toLocaleDateString("en",{month:"short"}),income:0,expense:0});
+    months.push({
+      key,
+      label:d.toLocaleDateString("en",{month:"short"}),
+      income:0,
+      expense:0
+    });
   }
+
   const lookup = Object.fromEntries(months.map(m=>[m.key,m]));
+
   rows.forEach(r => {
     const key = dateOf(r).slice(0,7);
-    if (lookup[key] && (r.kind==="income" || r.kind==="expense")) lookup[key][r.kind] += Number(r.amount);
+    if (lookup[key] && (r.kind==="income" || r.kind==="expense")) {
+      lookup[key][r.kind] += Number(r.amount);
+    }
   });
+
   const max = Math.max(1,...months.flatMap(m=>[m.income,m.expense]));
+
   months.forEach(m => {
     const row = document.createElement("div");
     row.className = "chartrow";
+
     const label = document.createElement("div");
     label.textContent = m.label;
+
     const bars = document.createElement("div");
     bars.className = "chart";
     bars.style.gap = "4px";
-    [[m.income,"bar-income"],[m.expense,"bar-expense"]].forEach(([val,cls])=>{
+
+    [[m.income,"bar-income"],[m.expense,"bar-expense"]].forEach(([val,cls]) => {
       const line = document.createElement("div");
       line.className = "bartrack";
+
       const bar = document.createElement("div");
       bar.className = cls;
       bar.style.width = (Number(val)/max*100)+"%";
+
       line.appendChild(bar);
       bars.appendChild(line);
     });
+
     row.append(label,bars);
     container.appendChild(row);
   });
+
   const note = document.createElement("div");
   note.className = "muted";
   note.textContent = "Income and expense bars are shown separately. Amounts: " + currency;
@@ -396,32 +478,43 @@ function renderMonthly(rows, currency) {
 function renderCategories(rows, currency) {
   const container = $("categoryChart");
   container.innerHTML = "";
+
   const totals = {};
-  rows.filter(r=>r.kind==="expense").forEach(r=>{
+
+  rows.filter(r=>r.kind==="expense").forEach(r => {
     const cat = categoryOf(r);
     totals[cat] = (totals[cat]||0)+Number(r.amount);
   });
+
   const list = Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
   if (!list.length) {
     container.textContent = "No expense categories yet.";
     container.className = "empty";
     return;
   }
+
   container.className = "";
   const max = Math.max(...list.map(x=>x[1]),1);
-  list.forEach(([cat,val])=>{
+
+  list.forEach(([cat,val]) => {
     const row = document.createElement("div");
     row.className = "catrow";
+
     const name = document.createElement("div");
     name.textContent = cat;
+
     const track = document.createElement("div");
     track.className = "cattrack";
+
     const bar = document.createElement("div");
     bar.className = "catbar";
     bar.style.width = (val/max*100)+"%";
     track.appendChild(bar);
+
     const amount = document.createElement("div");
     amount.textContent = money(val,currency);
+
     row.append(name,track,amount);
     container.appendChild(row);
   });
@@ -430,25 +523,36 @@ function renderCategories(rows, currency) {
 function renderAccounts(rows, currency) {
   const container = $("accountBreakdown");
   container.innerHTML = "";
-  ["cash","bank","home"].forEach(account=>{
+
+  ["cash","bank","home"].forEach(account => {
     const group = rows.filter(r=>r.account===account);
-    const inc = group.filter(r=>r.kind==="income").reduce((s,r)=>s+Number(r.amount),0);
-    const exp = group.filter(r=>r.kind==="expense").reduce((s,r)=>s+Number(r.amount),0);
+
+    const inc = group.filter(r=>r.kind==="income")
+      .reduce((s,r)=>s+Number(r.amount),0);
+    const exp = group.filter(r=>r.kind==="expense")
+      .reduce((s,r)=>s+Number(r.amount),0);
+
     const row = document.createElement("div");
     row.style.padding = "12px 0";
     row.style.borderBottom = "1px solid var(--line)";
+
     const top = document.createElement("div");
     top.className = "row";
+
     const name = document.createElement("strong");
     name.textContent = account.charAt(0).toUpperCase()+account.slice(1);
+
     const net = document.createElement("strong");
     net.textContent = money(inc-exp,currency);
     net.className = inc-exp < 0 ? "red" : "green";
+
     top.append(name,net);
+
     const detail = document.createElement("div");
     detail.className = "muted";
     detail.style.marginTop = "6px";
     detail.textContent = "Income "+money(inc,currency)+" · Expenses "+money(exp,currency);
+
     row.append(top,detail);
     container.appendChild(row);
   });
@@ -462,9 +566,11 @@ function filteredRecords() {
   const category = $("filterCategory").value;
   const from = $("dateFrom").value;
   const to = $("dateTo").value;
-  return records.filter(r=>{
+
+  return records.filter(r => {
     const hay = [r.note,r.category,r.account,r.kind,r.currency].join(" ").toLowerCase();
     const d = dateOf(r);
+
     return (!search || hay.includes(search))
       && (kindFilter==="all" || r.kind===kindFilter)
       && (account==="all" || r.account===account)
@@ -478,55 +584,93 @@ function filteredRecords() {
 function renderHistory() {
   const tbody = $("transactionRows");
   tbody.innerHTML = "";
+
   const rows = filteredRecords();
   $("recordCount").textContent = rows.length+" matching records · "+records.length+" total";
   $("historyMessage").classList.toggle("hidden", rows.length>0);
+
   if (!rows.length) {
-    $("historyMessage").textContent = records.length ? "No transactions match these filters." : "No transactions yet. Add your first record above.";
+    $("historyMessage").textContent = records.length
+      ? "No transactions match these filters."
+      : "No transactions yet. Add your first record above.";
     return;
   }
-  rows.forEach(r=>{
+
+  rows.forEach(r => {
     const tr = document.createElement("tr");
+
     const date = document.createElement("td");
     date.textContent = dateOf(r) || "—";
+
     const type = document.createElement("td");
     const pill = document.createElement("span");
     pill.className = "pill";
     pill.textContent = r.kind || "—";
     type.appendChild(pill);
+
     const description = document.createElement("td");
     description.className = "note";
     description.textContent = categoryOf(r) + (r.note ? " · "+r.note : "");
+
     const account = document.createElement("td");
     account.textContent = r.account || "—";
+
     const amount = document.createElement("td");
     amount.className = "amount "+(r.kind==="income"?"green":"red");
     amount.textContent = (r.kind==="income"?"+ ":"− ")+money(r.amount,r.currency);
+
     const action = document.createElement("td");
+    const actions = document.createElement("div");
+    actions.className = "actions";
+
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary";
+    edit.textContent = "Edit";
+    edit.addEventListener("click",()=>editRecord(r));
+
     const del = document.createElement("button");
-    del.className = "danger";
     del.type = "button";
+    del.className = "danger";
     del.textContent = "Delete";
     del.addEventListener("click",()=>deleteRecord(r));
-    action.appendChild(del);
+
+    actions.append(edit,del);
+    action.appendChild(actions);
     tr.append(date,type,description,account,amount,action);
     tbody.appendChild(tr);
   });
 }
 
-$("transactionForm").addEventListener("submit", async e=>{
+$("transactionForm").addEventListener("submit", async e => {
   e.preventDefault();
-  if (!user) return message("saveMessage","Please log in again.",true);
+
+  if (!user) {
+    return message("saveMessage","Please log in again.",true);
+  }
+
   const amount = Number($("amount").value);
-  if (!Number.isFinite(amount) || amount<=0) return message("saveMessage","Enter an amount greater than zero.",true);
+  const date = $("txDate").value;
+
+  if (!date) {
+    return message("saveMessage","Please select a date.",true);
+  }
+
+  if (!Number.isFinite(amount) || amount<=0) {
+    return message("saveMessage","Enter an amount greater than zero.",true);
+  }
+
   const btn = $("saveBtn");
   btn.disabled = true;
-  message("saveMessage","Saving transaction...");
+  const wasEditing = editingRecordId !== null;
+
+  message("saveMessage",wasEditing
+    ? "Updating transaction..."
+    : "Saving transaction...");
+
   try {
-    // Values match the current database schema and account CHECK constraint.
     const record = {
-      user_id: user.id,
-      tx_date: $("txDate").value,
+      tx_date: date,
       kind: kind,
       amount: amount,
       currency: $("currency").value,
@@ -535,15 +679,49 @@ $("transactionForm").addEventListener("submit", async e=>{
       note: $("note").value.trim(),
       category: $("category").value.trim() || null
     };
-    const {error} = await db.from("transactions").insert(record);
-    if (error) throw error;
-    message("saveMessage","Transaction saved successfully.");
-    $("amount").value = "";
-    $("note").value = "";
-    $("category").value = "";
+
+    if (wasEditing) {
+      const {data,error} = await db.from("transactions")
+        .update(record)
+        .eq("id",editingRecordId)
+        .eq("user_id",user.id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length===0) {
+        throw new Error("No row was updated. Check your Supabase UPDATE policy and permissions.");
+      }
+
+      editingRecordId = null;
+      $("transactionForm").reset();
+      $("txDate").value = localDate();
+      $("formHeading").textContent = "Add transaction";
+      $("cancelEditBtn").classList.add("hidden");
+      setKind("expense");
+
+      message("saveMessage","Transaction updated successfully!");
+    } else {
+      const {error} = await db.from("transactions")
+        .insert({
+          ...record,
+          user_id: user.id
+        });
+
+      if (error) throw error;
+
+      $("transactionForm").reset();
+      $("txDate").value = localDate();
+      setKind("expense");
+
+      message("saveMessage","Transaction saved successfully!");
+    }
+
     await loadRecords();
   } catch(err) {
-    message("saveMessage","Save error: "+err.message,true);
+    message("saveMessage",
+      (wasEditing ? "Update error: " : "Save error: ")+err.message,
+      true);
   } finally {
     btn.disabled = false;
   }
@@ -551,18 +729,35 @@ $("transactionForm").addEventListener("submit", async e=>{
 
 async function deleteRecord(r) {
   if (!user) return;
-  if (!confirm("Delete this transaction? This cannot be undone.")) return;
+
+  const description = categoryOf(r) + " · " + money(r.amount,r.currency);
+  if (!confirm("Delete this transaction?\n\n"+description+"\n\nThis cannot be undone.")) return;
+
   try {
-    const {error} = await db.from("transactions")
-      .delete().eq("id",r.id).eq("user_id",user.id);
+    const {data,error} = await db.from("transactions")
+      .delete()
+      .eq("id",r.id)
+      .eq("user_id",user.id)
+      .select("id");
+
     if (error) throw error;
-    records = records.filter(item=>item.id!==r.id);
+
+    if (!data || data.length===0) {
+      throw new Error("No row was deleted. Check your Supabase DELETE policy and permissions.");
+    }
+
+    if (String(editingRecordId)===String(r.id)) {
+      cancelEdit();
+    }
+
+    records = records.filter(item=>String(item.id)!==String(r.id));
     updateCategoryFilter();
     renderDashboard();
     renderHistory();
+    message("saveMessage","Transaction deleted successfully.");
   } catch(err) {
     alert("Could not delete record: "+err.message+
-      "\n\nYour Supabase RLS policy may not allow DELETE. No policy has been changed automatically.");
+      "\n\nCheck your Supabase RLS DELETE policy. No security policy was changed automatically.");
   }
 }
 
@@ -571,15 +766,22 @@ function csvCell(value) {
   if (/^[=+\-@\t\r]/.test(s)) s = "'"+s;
   return '"'+s.replace(/"/g,'""')+'"';
 }
-$("exportBtn").addEventListener("click",()=>{
+
+$("exportBtn").addEventListener("click",() => {
   const rows = filteredRecords();
   if (!rows.length) return alert("No records to export.");
+
   const columns = ["Date","Type","Amount","Currency","Account","Category","Note"];
   const lines = [columns.map(csvCell).join(",")];
-  rows.forEach(r=>lines.push([
+
+  rows.forEach(r => lines.push([
     dateOf(r),r.kind,r.amount,r.currency,r.account,categoryOf(r),r.note
   ].map(csvCell).join(",")));
-  const blob = new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+
+  const blob = new Blob(["\uFEFF"+lines.join("\r\n")],{
+    type:"text/csv;charset=utf-8;"
+  });
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -591,38 +793,42 @@ $("exportBtn").addEventListener("click",()=>{
 });
 
 ["search","filterKind","filterAccount","filterCurrency","filterCategory","dateFrom","dateTo"]
-.forEach(id=>$(id).addEventListener(id==="search"?"input":"change",renderHistory));
+.forEach(id => $(id).addEventListener(
+  id==="search" ? "input" : "change",
+  renderHistory
+));
 
-$("clearFilters").addEventListener("click",()=>{
-  $("search").value="";
-  $("filterKind").value="all";
-  $("filterAccount").value="all";
-  $("filterCurrency").value="all";
-  $("filterCategory").value="all";
-  $("dateFrom").value="";
-  $("dateTo").value="";
+$("clearFilters").addEventListener("click",() => {
+  $("search").value = "";
+  $("filterKind").value = "all";
+  $("filterAccount").value = "all";
+  $("filterCurrency").value = "all";
+  $("filterCategory").value = "all";
+  $("dateFrom").value = "";
+  $("dateTo").value = "";
   renderHistory();
 });
-$("summaryCurrency").addEventListener("change",renderDashboard);
-$("refreshButton")?.addEventListener("click",loadRecords);
 
-document.querySelectorAll("[data-jump]").forEach(btn=>{
-  btn.addEventListener("click",()=>{
+$("summaryCurrency").addEventListener("change",renderDashboard);
+
+document.querySelectorAll("[data-jump]").forEach(btn => {
+  btn.addEventListener("click",() => {
     const target = $(btn.dataset.jump);
     if (target) target.scrollIntoView({behavior:"smooth",block:"start"});
   });
 });
 
-db.auth.onAuthStateChange((event,session)=>{
+db.auth.onAuthStateChange((event,session) => {
   if (event==="SIGNED_OUT") {
     user = null;
     records = [];
+    editingRecordId = null;
     $("mainApp").classList.add("hidden");
     $("authPanel").classList.remove("hidden");
   }
 });
 
-(async function init(){
+(async function init() {
   try {
     const {data,error} = await db.auth.getSession();
     if (error) throw error;
