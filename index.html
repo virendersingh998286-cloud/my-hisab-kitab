@@ -2,303 +2,530 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Hisab Kitab</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: #f3f5f9;
-      color: #172033;
-    }
-    .container { max-width: 650px; margin: auto; }
-    h1 { text-align: center; margin-bottom: 6px; }
-    .subtitle { text-align: center; color: #687386; margin-bottom: 22px; }
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 3px 14px #0000000c;
-    }
-    label { display: block; font-size: 14px; margin: 12px 0 6px; }
-    input, select, button {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #d8deea;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    button {
-      background: #235de8;
-      color: white;
-      border: 0;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 14px;
-    }
-    button.secondary { background: #e8edfa; color: #23427d; }
-    button:disabled { opacity: .6; }
-    .tabs { display: flex; gap: 10px; }
-    .tabs button { flex: 1; }
-    .tabs button.active { background: #16794b; }
-    .message { margin-top: 12px; font-size: 14px; overflow-wrap: anywhere; }
-    .hidden { display: none; }
-    .transaction {
-      border-bottom: 1px solid #edf0f5;
-      padding: 12px 0;
-    }
-    .transaction:last-child { border-bottom: 0; }
-    .tx-top { display: flex; justify-content: space-between; gap: 12px; }
-    .income { color: #14804a; }
-    .expense { color: #c0392b; }
-    .muted { color: #687386; font-size: 13px; margin-top: 5px; }
-    .totals { display: flex; gap: 10px; }
-    .total-box { flex: 1; min-width: 0; background: #f5f7fb; padding: 12px; border-radius: 9px; }
-    .total-box strong { display: block; margin-top: 7px; overflow-wrap: anywhere; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Hisab Kitab</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#172033;--muted:#738096;--blue:#315bea;--green:#138653;--red:#d74747;--line:#e7ebf3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px Arial,sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.layout{max-width:1200px;margin:auto;padding:20px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{background:var(--blue);color:white;border-radius:13px;padding:12px;font-size:21px}
+h1{font-size:23px;margin:0 0 5px}
+h2{font-size:18px;margin:0 0 15px}
+h3{font-size:15px;margin:0 0 12px}
+p{line-height:1.5}
+.small,.muted{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stat{padding:17px}
+.stat-label{font-size:13px;color:var(--muted)}
+.stat-value{font-size:23px;font-weight:700;overflow-wrap:anywhere;margin-top:12px}
+.green{color:var(--green)}.red{color:var(--red)}.blue{color:var(--blue)}
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+input,select{width:100%;padding:11px;border:1px solid #dce2ed;border-radius:9px;background:white;color:var(--ink);min-width:0}
+button{border:0;border-radius:9px;padding:11px 14px;background:var(--blue);color:white;font-weight:600}
+button:disabled{opacity:.55}
+.secondary{background:#edf1fc;color:#2948a6}
+.danger{background:#fff0f0;color:#b42323}
+.full{width:100%;margin-top:15px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button{flex:1}
+.tabs .selected{background:var(--green)}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.formgrid .wide{grid-column:1/-1}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.status{font-size:13px;margin-top:10px;overflow-wrap:anywhere}
+.chart{display:flex;flex-direction:column;gap:13px}
+.chartrow{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;font-size:12px}
+.bartrack{display:flex;height:20px;gap:3px;background:#f0f2f8;border-radius:5px;overflow:hidden}
+.bar-income{background:#20a36a;height:100%;min-width:0}
+.bar-expense{background:#e25b5b;height:100%;min-width:0}
+.legend{display:flex;gap:15px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:12px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.catrow{display:grid;grid-template-columns:minmax(70px,1fr) 2fr auto;gap:8px;align-items:center;margin:13px 0;font-size:12px}
+.cattrack{height:8px;background:#edf0f6;border-radius:9px;overflow:hidden}
+.catbar{height:100%;background:var(--blue);border-radius:9px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
+th,td{text-align:left;padding:12px 9px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+td.note{white-space:normal;min-width:100px}
+.pill{display:inline-block;padding:5px 8px;border-radius:20px;background:#eef1f8;font-size:11px}
+.amount{font-weight:700}
+.empty{text-align:center;color:var(--muted);padding:25px 8px}
+.hidden{display:none!important}
+.auth{max-width:440px;margin:50px auto}
+.bottomnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.bottomnav button{flex:1;min-width:100px}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.layout{padding:12px}.card{padding:14px}.stat{padding:13px}.stat-value{font-size:19px}h1{font-size:20px}.formgrid{grid-template-columns:1fr}.formgrid .wide{grid-column:auto}.filters{grid-template-columns:1fr 1fr}.filters .searchwide{grid-column:1/-1}}
+</style>
 </head>
-
 <body>
-<div class="container">
-  <h1>My Hisab Kitab</h1>
-  <p class="subtitle">Track your income and expenses</p>
 
-  <section class="card" id="authCard">
-    <h2 id="authTitle">Login</h2>
-
+<div class="layout">
+  <section id="authPanel" class="card auth">
+    <div class="brand">
+      <div class="logo">₹</div>
+      <div><h1>My Hisab Kitab</h1><div class="muted">Your personal finance tracker</div></div>
+    </div>
+    <h2 id="authHeading" style="margin-top:24px">Login to your account</h2>
     <form id="authForm">
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="email" required>
-
       <label for="password">Password</label>
-      <input id="password" type="password" minlength="6"
-             autocomplete="current-password" required>
-
-      <button id="authButton" type="submit">Login</button>
+      <input id="password" type="password" minlength="6" autocomplete="current-password" required>
+      <button id="authSubmit" class="full" type="submit">Login</button>
     </form>
-
-    <button class="secondary" id="switchAuth" type="button">
-      Create a new account
-    </button>
-    <p id="authMessage" class="message" role="status"></p>
+    <button id="authSwitch" class="secondary full" type="button">Create a new account</button>
+    <div id="authMessage" class="status" role="status"></div>
   </section>
 
-  <section id="appSection" class="hidden">
-    <div class="card">
-      <div class="tx-top">
-        <div>
-          <strong>My transactions</strong>
-          <div class="muted" id="userEmail"></div>
-        </div>
-        <button id="logoutButton" type="button"
-                class="secondary" style="width:auto;margin-top:0">
-          Logout
-        </button>
+  <main id="mainApp" class="hidden">
+    <header>
+      <div class="brand">
+        <div class="logo">₹</div>
+        <div><h1>My Hisab Kitab</h1><div class="muted">Your money, all in one place</div></div>
       </div>
-    </div>
+      <button id="logoutBtn" class="secondary" type="button">Logout</button>
+    </header>
 
-    <div class="card">
-      <h2>Add transaction</h2>
-
-      <div class="tabs">
-        <button type="button" id="expenseTab" class="active">Expense</button>
-        <button type="button" id="incomeTab" class="secondary">Income</button>
-      </div>
-
-      <form id="transactionForm">
-        <label for="txDate">Date</label>
-        <input id="txDate" type="date" required>
-
-        <label for="amount">Amount</label>
-        <input id="amount" type="number" min="0.01" step="0.01"
-               placeholder="Enter amount" required>
-
-        <label for="currency">Currency</label>
-        <select id="currency" required>
-          <option value="ZMW">ZMW — Zambian Kwacha</option>
-          <option value="INR">INR — Indian Rupee</option>
-          <option value="USD">USD — US Dollar</option>
+    <div class="row" style="margin-bottom:15px">
+      <div><h2 style="margin-bottom:4px">Dashboard</h2><div id="welcome" class="muted"></div></div>
+      <div style="min-width:145px">
+        <label for="summaryCurrency" style="margin-top:0">Dashboard currency</label>
+        <select id="summaryCurrency">
+          <option value="ZMW">ZMW</option><option value="INR">INR</option><option value="USD">USD</option>
         </select>
-
-        <label for="account">Account</label>
-        <select id="account" required>
-          <option value="cash">Cash</option>
-          <option value="bank">Bank</option>
-          <option value="home">Home</option>
-        </select>
-
-        <label for="category">Category</label>
-        <input id="category" type="text"
-               placeholder="e.g. Food, Travel, Salary">
-
-        <label for="note">Note</label>
-        <input id="note" type="text" placeholder="Optional details">
-
-        <button id="saveButton" type="submit">Save transaction</button>
-        <p id="saveMessage" class="message" role="status"></p>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2>Summary</h2>
-      <div class="totals">
-        <div class="total-box">
-          <span class="muted">Income</span>
-          <strong id="incomeTotal">0</strong>
-        </div>
-        <div class="total-box">
-          <span class="muted">Expenses</span>
-          <strong id="expenseTotal">0</strong>
-        </div>
       </div>
-      <p class="muted">Totals are grouped by currency below.</p>
     </div>
 
-    <div class="card">
-      <div class="tx-top">
-        <h2>History</h2>
-        <button id="refreshButton" class="secondary" type="button"
-                style="width:auto;margin-top:0">Refresh</button>
+    <nav class="bottomnav">
+      <button type="button" class="secondary" data-jump="overview">Overview</button>
+      <button type="button" class="secondary" data-jump="addSection">+ Add record</button>
+      <button type="button" class="secondary" data-jump="historySection">Transactions</button>
+      <button type="button" class="secondary" data-jump="reportsSection">Reports</button>
+    </nav>
+
+    <section id="overview">
+      <div class="grid">
+        <div class="card stat"><div class="stat-label">Total Income</div><div id="totalIncome" class="stat-value green">0</div><div class="muted">All-time</div></div>
+        <div class="card stat"><div class="stat-label">Total Expenses</div><div id="totalExpense" class="stat-value red">0</div><div class="muted">All-time</div></div>
+        <div class="card stat"><div class="stat-label">Net Balance</div><div id="netBalance" class="stat-value blue">0</div><div class="muted">Income minus expenses</div></div>
+        <div class="card stat"><div class="stat-label">Transactions</div><div id="totalCount" class="stat-value">0</div><div class="muted">All-time records</div></div>
       </div>
-      <div id="history">Loading transactions...</div>
-    </div>
-  </section>
+    </section>
+
+    <section class="two">
+      <div class="card">
+        <div class="row"><h2>Monthly overview</h2><span class="muted">Last 6 months</span></div>
+        <div class="legend">
+          <span><i class="dot" style="background:#20a36a"></i>Income</span>
+          <span><i class="dot" style="background:#e25b5b"></i>Expenses</span>
+        </div>
+        <div id="monthlyChart" class="chart"></div>
+      </div>
+      <div class="card" id="reportsSection">
+        <h2>Expense categories</h2>
+        <div class="muted">All-time, selected currency</div>
+        <div id="categoryChart" style="margin-top:16px"></div>
+      </div>
+    </section>
+
+    <section class="two">
+      <div class="card" id="addSection">
+        <h2>Add transaction</h2>
+        <div class="tabs">
+          <button type="button" id="expenseTab" class="selected">Expense</button>
+          <button type="button" id="incomeTab" class="secondary">Income</button>
+        </div>
+        <form id="transactionForm">
+          <div class="formgrid">
+            <div><label for="txDate">Date</label><input id="txDate" type="date" required></div>
+            <div><label for="amount">Amount</label><input id="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div>
+            <div><label for="currency">Currency</label>
+              <select id="currency"><option value="ZMW">ZMW — Kwacha</option><option value="INR">INR — Rupee</option><option value="USD">USD — Dollar</option></select>
+            </div>
+            <div><label for="account">Account</label>
+              <select id="account"><option value="cash">Cash</option><option value="bank">Bank</option><option value="home">Home</option></select>
+            </div>
+            <div class="wide"><label for="category">Category</label>
+              <input id="category" maxlength="100" placeholder="Food, salary, transport...">
+            </div>
+            <div class="wide"><label for="note">Note</label><input id="note" maxlength="500" placeholder="Optional details"></div>
+          </div>
+          <button id="saveBtn" class="full" type="submit">Save expense</button>
+          <div id="saveMessage" class="status" role="status"></div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Account breakdown</h2>
+        <div class="muted">All-time totals for selected currency</div>
+        <div id="accountBreakdown" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <section id="historySection" class="card">
+      <div class="row">
+        <div><h2 style="margin-bottom:5px">All transactions</h2><div id="recordCount" class="muted">All-time records</div></div>
+        <button id="exportBtn" type="button" class="secondary">Export CSV</button>
+      </div>
+      <div class="filters" style="margin:16px 0">
+        <div class="searchwide"><label for="search">Search</label><input id="search" placeholder="Search notes or category"></div>
+        <div><label for="filterKind">Type</label><select id="filterKind"><option value="all">All types</option><option value="income">Income</option><option value="expense">Expense</option></select></div>
+        <div><label for="filterAccount">Account</label><select id="filterAccount"><option value="all">All accounts</option><option value="cash">Cash</option><option value="bank">Bank</option><option value="home">Home</option></select></div>
+        <div><label for="filterCurrency">Currency</label><select id="filterCurrency"><option value="all">All currencies</option><option value="ZMW">ZMW</option><option value="INR">INR</option><option value="USD">USD</option></select></div>
+        <div><label for="dateFrom">From date</label><input id="dateFrom" type="date"></div>
+        <div><label for="dateTo">To date</label><input id="dateTo" type="date"></div>
+        <div><label for="filterCategory">Category</label><select id="filterCategory"><option value="all">All categories</option></select></div>
+        <div style="align-self:end"><button id="clearFilters" class="secondary" type="button" style="width:100%">Clear filters</button></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Category / Note</th><th>Account</th><th>Amount</th><th>Action</th></tr></thead>
+          <tbody id="transactionRows"></tbody>
+        </table>
+      </div>
+      <div id="historyMessage" class="empty hidden"></div>
+    </section>
+    <div class="muted" style="text-align:center;padding:8px 0 24px">Your private finance dashboard · Records are stored in your Supabase project</div>
+  </main>
 </div>
 
 <script>
-  // Your Supabase project settings
-  const SUPABASE_URL = "https://ajkdllnuivbifoagtxee.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_JrSxYg_CX5vwsHklYnYW3Q_lCq24I8p";
+const SUPABASE_URL = "https://ajkdllnuivbifoagtxee.supabase.co";
+const SUPABASE_KEY = "sb_publishable_JrSxYg_CX5vwsHklYnYW3Q_lCq24I8p";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
 
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let user = null;
+let authMode = "login";
+let kind = "expense";
+let records = [];
+let loading = false;
 
-  const $ = (id) => document.getElementById(id);
+function localDate(d = new Date()) {
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().slice(0,10);
+}
+$("txDate").value = localDate();
 
-  let currentUser = null;
-  let authMode = "login";
-  let kind = "expense";
+function message(id, text, error = false) {
+  $(id).textContent = text;
+  $(id).style.color = error ? "#c0392b" : "#138653";
+}
+function money(amount, currency) {
+  return new Intl.NumberFormat("en", {minimumFractionDigits:2,maximumFractionDigits:2})
+    .format(Number(amount || 0)) + " " + currency;
+}
+function escapeText(s) {
+  return String(s ?? "");
+}
+function setKind(value) {
+  kind = value;
+  $("expenseTab").className = kind === "expense" ? "selected" : "secondary";
+  $("incomeTab").className = kind === "income" ? "selected" : "secondary";
+  $("saveBtn").textContent = "Save " + kind;
+}
+$("expenseTab").addEventListener("click", () => setKind("expense"));
+$("incomeTab").addEventListener("click", () => setKind("income"));
 
-  $("txDate").value = new Date().toLocaleDateString("en-CA");
+$("authSwitch").addEventListener("click", () => {
+  authMode = authMode === "login" ? "signup" : "login";
+  $("authHeading").textContent = authMode === "login" ? "Login to your account" : "Create your account";
+  $("authSubmit").textContent = authMode === "login" ? "Login" : "Create account";
+  $("authSwitch").textContent = authMode === "login" ? "Create a new account" : "Back to login";
+  $("password").autocomplete = authMode === "login" ? "current-password" : "new-password";
+  message("authMessage", "");
+});
 
-  function showMessage(id, message, isError = false) {
-    $(id).textContent = message;
-    $(id).style.color = isError ? "#c0392b" : "#16794b";
-  }
-
-  function setKind(newKind) {
-    kind = newKind;
-
-    $("expenseTab").className =
-      kind === "expense" ? "active" : "secondary";
-    $("incomeTab").className =
-      kind === "income" ? "active" : "secondary";
-  }
-
-  $("expenseTab").addEventListener("click", () => setKind("expense"));
-  $("incomeTab").addEventListener("click", () => setKind("income"));
-
-  $("switchAuth").addEventListener("click", () => {
-    authMode = authMode === "login" ? "signup" : "login";
-
-    $("authTitle").textContent =
-      authMode === "login" ? "Login" : "Create account";
-    $("authButton").textContent =
-      authMode === "login" ? "Login" : "Create account";
-    $("switchAuth").textContent =
-      authMode === "login" ? "Create a new account" : "Back to login";
-    $("password").autocomplete =
-      authMode === "login" ? "current-password" : "new-password";
-
-    showMessage("authMessage", "");
-  });
-
-  $("authForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-
+$("authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("authSubmit");
+  btn.disabled = true;
+  message("authMessage", "Please wait...");
+  try {
     const email = $("email").value.trim();
     const password = $("password").value;
-    const button = $("authButton");
-
-    button.disabled = true;
-    showMessage("authMessage", "Please wait...");
-
-    try {
-      let result;
-
-      if (authMode === "signup") {
-        result = await db.auth.signUp({ email, password });
-      } else {
-        result = await db.auth.signInWithPassword({ email, password });
-      }
-
-      if (result.error) throw result.error;
-
-      if (result.data.session) {
-        await handleSession(result.data.session);
-      } else {
-        showMessage(
-          "authMessage",
-          "Account request successful. Check your email for confirmation, then log in."
-        );
-      }
-    } catch (error) {
-      showMessage("authMessage", error.message, true);
-    } finally {
-      button.disabled = false;
+    const result = authMode === "signup"
+      ? await db.auth.signUp({email, password})
+      : await db.auth.signInWithPassword({email, password});
+    if (result.error) throw result.error;
+    if (result.data.session) {
+      await showApp(result.data.session.user);
+    } else {
+      message("authMessage", "Account created/request received. Check your email for confirmation, then log in.");
     }
-  });
-
-  async function handleSession(session) {
-    currentUser = session ? session.user : null;
-
-    $("authCard").classList.toggle("hidden", !!currentUser);
-    $("appSection").classList.toggle("hidden", !currentUser);
-
-    if (currentUser) {
-      $("userEmail").textContent = currentUser.email || "";
-      await loadTransactions();
-    }
+  } catch (err) {
+    message("authMessage", err.message, true);
+  } finally {
+    btn.disabled = false;
   }
+});
 
-  $("logoutButton").addEventListener("click", async () => {
-    const { error } = await db.auth.signOut();
+async function showApp(nextUser) {
+  user = nextUser || null;
+  $("authPanel").classList.toggle("hidden", !!user);
+  $("mainApp").classList.toggle("hidden", !user);
+  if (!user) return;
+  $("welcome").textContent = user.email || "Logged in";
+  await loadRecords();
+}
+$("logoutBtn").addEventListener("click", async () => {
+  const {error} = await db.auth.signOut();
+  if (error) return message("saveMessage", error.message, true);
+  user = null;
+  records = [];
+  $("authPanel").classList.remove("hidden");
+  $("mainApp").classList.add("hidden");
+});
 
-    if (error) {
-      showMessage("saveMessage", error.message, true);
-      return;
-    }
+async function loadRecords() {
+  if (!user || loading) return;
+  loading = true;
+  $("historyMessage").classList.add("hidden");
+  $("transactionRows").innerHTML = "";
+  $("historyMessage").textContent = "Loading records...";
+  $("historyMessage").classList.remove("hidden");
+  try {
+    // RLS remains enabled; the query is also scoped to the signed-in user.
+    const {data, error} = await db.from("transactions")
+      .select("id,user_id,tx_date,kind,amount,currency,account,transfer_to,note,created_at,category,transaction_date,type")
+      .eq("user_id", user.id)
+      .order("tx_date", {ascending:false})
+      .order("created_at", {ascending:false});
+    if (error) throw error;
+    records = data || [];
+    updateCategoryFilter();
+    renderDashboard();
+    renderHistory();
+  } catch (err) {
+    $("historyMessage").textContent = "Could not load records: " + err.message;
+    $("historyMessage").classList.remove("hidden");
+  } finally {
+    loading = false;
+  }
+}
 
-    currentUser = null;
-    $("authCard").classList.remove("hidden");
-    $("appSection").classList.add("hidden");
-    showMessage("authMessage", "Logged out.");
+function dateOf(r) {
+  return r.tx_date || r.transaction_date || "";
+}
+function categoryOf(r) {
+  return (r.category || "").trim() || "Uncategorized";
+}
+function updateCategoryFilter() {
+  const select = $("filterCategory");
+  const old = select.value;
+  const categories = [...new Set(records.map(categoryOf))].sort((a,b)=>a.localeCompare(b));
+  select.innerHTML = '<option value="all">All categories</option>';
+  categories.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    select.appendChild(opt);
   });
+  if (categories.includes(old)) select.value = old;
+}
 
-  $("transactionForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
+function renderDashboard() {
+  const currency = $("summaryCurrency").value;
+  const curr = records.filter(r => r.currency === currency);
+  const income = curr.filter(r => r.kind === "income").reduce((s,r)=>s+Number(r.amount),0);
+  const expense = curr.filter(r => r.kind === "expense").reduce((s,r)=>s+Number(r.amount),0);
+  $("totalIncome").textContent = money(income,currency);
+  $("totalExpense").textContent = money(expense,currency);
+  $("netBalance").textContent = money(income-expense,currency);
+  $("netBalance").className = "stat-value " + (income-expense < 0 ? "red" : "blue");
+  $("totalCount").textContent = records.length.toLocaleString();
 
-    if (!currentUser) {
-      showMessage("saveMessage", "Please log in again.", true);
-      return;
-    }
+  renderMonthly(curr, currency);
+  renderCategories(curr, currency);
+  renderAccounts(curr, currency);
+}
 
-    const amount = Number($("amount").value);
+function renderMonthly(rows, currency) {
+  const container = $("monthlyChart");
+  container.innerHTML = "";
+  const now = new Date();
+  const months = [];
+  for (let i=5;i>=0;i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    months.push({key,label:d.toLocaleDateString("en",{month:"short"}),income:0,expense:0});
+  }
+  const lookup = Object.fromEntries(months.map(m=>[m.key,m]));
+  rows.forEach(r => {
+    const key = dateOf(r).slice(0,7);
+    if (lookup[key] && (r.kind==="income" || r.kind==="expense")) lookup[key][r.kind] += Number(r.amount);
+  });
+  const max = Math.max(1,...months.flatMap(m=>[m.income,m.expense]));
+  months.forEach(m => {
+    const row = document.createElement("div");
+    row.className = "chartrow";
+    const label = document.createElement("div");
+    label.textContent = m.label;
+    const bars = document.createElement("div");
+    bars.className = "chart";
+    bars.style.gap = "4px";
+    [[m.income,"bar-income"],[m.expense,"bar-expense"]].forEach(([val,cls])=>{
+      const line = document.createElement("div");
+      line.className = "bartrack";
+      const bar = document.createElement("div");
+      bar.className = cls;
+      bar.style.width = (Number(val)/max*100)+"%";
+      line.appendChild(bar);
+      bars.appendChild(line);
+    });
+    row.append(label,bars);
+    container.appendChild(row);
+  });
+  const note = document.createElement("div");
+  note.className = "muted";
+  note.textContent = "Income and expense bars are shown separately. Amounts: " + currency;
+  container.appendChild(note);
+}
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showMessage("saveMessage", "Enter a valid amount.", true);
-      return;
-    }
+function renderCategories(rows, currency) {
+  const container = $("categoryChart");
+  container.innerHTML = "";
+  const totals = {};
+  rows.filter(r=>r.kind==="expense").forEach(r=>{
+    const cat = categoryOf(r);
+    totals[cat] = (totals[cat]||0)+Number(r.amount);
+  });
+  const list = Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (!list.length) {
+    container.textContent = "No expense categories yet.";
+    container.className = "empty";
+    return;
+  }
+  container.className = "";
+  const max = Math.max(...list.map(x=>x[1]),1);
+  list.forEach(([cat,val])=>{
+    const row = document.createElement("div");
+    row.className = "catrow";
+    const name = document.createElement("div");
+    name.textContent = cat;
+    const track = document.createElement("div");
+    track.className = "cattrack";
+    const bar = document.createElement("div");
+    bar.className = "catbar";
+    bar.style.width = (val/max*100)+"%";
+    track.appendChild(bar);
+    const amount = document.createElement("div");
+    amount.textContent = money(val,currency);
+    row.append(name,track,amount);
+    container.appendChild(row);
+  });
+}
 
-    // These account values must match the database CHECK constraint.
+function renderAccounts(rows, currency) {
+  const container = $("accountBreakdown");
+  container.innerHTML = "";
+  ["cash","bank","home"].forEach(account=>{
+    const group = rows.filter(r=>r.account===account);
+    const inc = group.filter(r=>r.kind==="income").reduce((s,r)=>s+Number(r.amount),0);
+    const exp = group.filter(r=>r.kind==="expense").reduce((s,r)=>s+Number(r.amount),0);
+    const row = document.createElement("div");
+    row.style.padding = "12px 0";
+    row.style.borderBottom = "1px solid var(--line)";
+    const top = document.createElement("div");
+    top.className = "row";
+    const name = document.createElement("strong");
+    name.textContent = account.charAt(0).toUpperCase()+account.slice(1);
+    const net = document.createElement("strong");
+    net.textContent = money(inc-exp,currency);
+    net.className = inc-exp < 0 ? "red" : "green";
+    top.append(name,net);
+    const detail = document.createElement("div");
+    detail.className = "muted";
+    detail.style.marginTop = "6px";
+    detail.textContent = "Income "+money(inc,currency)+" · Expenses "+money(exp,currency);
+    row.append(top,detail);
+    container.appendChild(row);
+  });
+}
+
+function filteredRecords() {
+  const search = $("search").value.trim().toLowerCase();
+  const kindFilter = $("filterKind").value;
+  const account = $("filterAccount").value;
+  const currency = $("filterCurrency").value;
+  const category = $("filterCategory").value;
+  const from = $("dateFrom").value;
+  const to = $("dateTo").value;
+  return records.filter(r=>{
+    const hay = [r.note,r.category,r.account,r.kind,r.currency].join(" ").toLowerCase();
+    const d = dateOf(r);
+    return (!search || hay.includes(search))
+      && (kindFilter==="all" || r.kind===kindFilter)
+      && (account==="all" || r.account===account)
+      && (currency==="all" || r.currency===currency)
+      && (category==="all" || categoryOf(r)===category)
+      && (!from || d>=from)
+      && (!to || d<=to);
+  });
+}
+
+function renderHistory() {
+  const tbody = $("transactionRows");
+  tbody.innerHTML = "";
+  const rows = filteredRecords();
+  $("recordCount").textContent = rows.length+" matching records · "+records.length+" total";
+  $("historyMessage").classList.toggle("hidden", rows.length>0);
+  if (!rows.length) {
+    $("historyMessage").textContent = records.length ? "No transactions match these filters." : "No transactions yet. Add your first record above.";
+    return;
+  }
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+    const date = document.createElement("td");
+    date.textContent = dateOf(r) || "—";
+    const type = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = r.kind || "—";
+    type.appendChild(pill);
+    const description = document.createElement("td");
+    description.className = "note";
+    description.textContent = categoryOf(r) + (r.note ? " · "+r.note : "");
+    const account = document.createElement("td");
+    account.textContent = r.account || "—";
+    const amount = document.createElement("td");
+    amount.className = "amount "+(r.kind==="income"?"green":"red");
+    amount.textContent = (r.kind==="income"?"+ ":"− ")+money(r.amount,r.currency);
+    const action = document.createElement("td");
+    const del = document.createElement("button");
+    del.className = "danger";
+    del.type = "button";
+    del.textContent = "Delete";
+    del.addEventListener("click",()=>deleteRecord(r));
+    action.appendChild(del);
+    tr.append(date,type,description,account,amount,action);
+    tbody.appendChild(tr);
+  });
+}
+
+$("transactionForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  if (!user) return message("saveMessage","Please log in again.",true);
+  const amount = Number($("amount").value);
+  if (!Number.isFinite(amount) || amount<=0) return message("saveMessage","Enter an amount greater than zero.",true);
+  const btn = $("saveBtn");
+  btn.disabled = true;
+  message("saveMessage","Saving transaction...");
+  try {
+    // Values match the current database schema and account CHECK constraint.
     const record = {
-      user_id: currentUser.id,
+      user_id: user.id,
       tx_date: $("txDate").value,
       kind: kind,
       amount: amount,
@@ -308,137 +535,102 @@
       note: $("note").value.trim(),
       category: $("category").value.trim() || null
     };
-
-    const button = $("saveButton");
-    button.disabled = true;
-    showMessage("saveMessage", "Saving...");
-
-    try {
-      const { error } = await db.from("transactions").insert(record);
-
-      if (error) throw error;
-
-      showMessage("saveMessage", "Transaction saved successfully.");
-
-      $("amount").value = "";
-      $("category").value = "";
-      $("note").value = "";
-
-      await loadTransactions();
-    } catch (error) {
-      showMessage("saveMessage", "Save error: " + error.message, true);
-    } finally {
-      button.disabled = false;
-    }
-  });
-
-  $("refreshButton").addEventListener("click", loadTransactions);
-
-  function formatMoney(amount, currency) {
-    return new Intl.NumberFormat("en", {
-      maximumFractionDigits: 2
-    }).format(Number(amount)) + " " + currency;
+    const {error} = await db.from("transactions").insert(record);
+    if (error) throw error;
+    message("saveMessage","Transaction saved successfully.");
+    $("amount").value = "";
+    $("note").value = "";
+    $("category").value = "";
+    await loadRecords();
+  } catch(err) {
+    message("saveMessage","Save error: "+err.message,true);
+  } finally {
+    btn.disabled = false;
   }
+});
 
-  async function loadTransactions() {
-    if (!currentUser) return;
-
-    $("history").textContent = "Loading transactions...";
-
-    try {
-      const { data, error } = await db
-        .from("transactions")
-        .select("id, tx_date, kind, amount, currency, account, note, category")
-        .eq("user_id", currentUser.id)
-        .order("tx_date", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const rows = data || [];
-      const totals = {};
-
-      rows.forEach((row) => {
-        const currency = row.currency || "";
-        if (!totals[currency]) totals[currency] = { income: 0, expense: 0 };
-
-        if (row.kind === "income") {
-          totals[currency].income += Number(row.amount);
-        } else if (row.kind === "expense") {
-          totals[currency].expense += Number(row.amount);
-        }
-      });
-
-      const incomeText = Object.entries(totals)
-        .map(([currency, total]) => formatMoney(total.income, currency))
-        .join(" · ") || "0";
-
-      const expenseText = Object.entries(totals)
-        .map(([currency, total]) => formatMoney(total.expense, currency))
-        .join(" · ") || "0";
-
-      $("incomeTotal").textContent = incomeText;
-      $("expenseTotal").textContent = expenseText;
-
-      if (rows.length === 0) {
-        $("history").textContent = "No transactions yet.";
-        return;
-      }
-
-      $("history").replaceChildren();
-
-      rows.forEach((row) => {
-        const item = document.createElement("div");
-        item.className = "transaction";
-
-        const top = document.createElement("div");
-        top.className = "tx-top";
-
-        const left = document.createElement("strong");
-        left.textContent =
-          (row.kind === "income" ? "Income" : "Expense") +
-          (row.category ? " · " + row.category : "");
-
-        const right = document.createElement("strong");
-        right.className = row.kind === "income" ? "income" : "expense";
-        right.textContent =
-          (row.kind === "income" ? "+" : "−") +
-          formatMoney(row.amount, row.currency);
-
-        top.append(left, right);
-
-        const details = document.createElement("div");
-        details.className = "muted";
-        details.textContent =
-          (row.tx_date || "") + " · Account: " + row.account +
-          (row.note ? " · " + row.note : "");
-
-        item.append(top, details);
-        $("history").appendChild(item);
-      });
-    } catch (error) {
-      $("history").textContent = "Load error: " + error.message;
-    }
+async function deleteRecord(r) {
+  if (!user) return;
+  if (!confirm("Delete this transaction? This cannot be undone.")) return;
+  try {
+    const {error} = await db.from("transactions")
+      .delete().eq("id",r.id).eq("user_id",user.id);
+    if (error) throw error;
+    records = records.filter(item=>item.id!==r.id);
+    updateCategoryFilter();
+    renderDashboard();
+    renderHistory();
+  } catch(err) {
+    alert("Could not delete record: "+err.message+
+      "\n\nYour Supabase RLS policy may not allow DELETE. No policy has been changed automatically.");
   }
+}
 
-  db.auth.onAuthStateChange((event, session) => {
-    if (event === "SIGNED_OUT") {
-      currentUser = null;
-      $("authCard").classList.remove("hidden");
-      $("appSection").classList.add("hidden");
-    }
+function csvCell(value) {
+  let s = String(value ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = "'"+s;
+  return '"'+s.replace(/"/g,'""')+'"';
+}
+$("exportBtn").addEventListener("click",()=>{
+  const rows = filteredRecords();
+  if (!rows.length) return alert("No records to export.");
+  const columns = ["Date","Type","Amount","Currency","Account","Category","Note"];
+  const lines = [columns.map(csvCell).join(",")];
+  rows.forEach(r=>lines.push([
+    dateOf(r),r.kind,r.amount,r.currency,r.account,categoryOf(r),r.note
+  ].map(csvCell).join(",")));
+  const blob = new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "my-hisab-kitab-"+localDate()+".csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+["search","filterKind","filterAccount","filterCurrency","filterCategory","dateFrom","dateTo"]
+.forEach(id=>$(id).addEventListener(id==="search"?"input":"change",renderHistory));
+
+$("clearFilters").addEventListener("click",()=>{
+  $("search").value="";
+  $("filterKind").value="all";
+  $("filterAccount").value="all";
+  $("filterCurrency").value="all";
+  $("filterCategory").value="all";
+  $("dateFrom").value="";
+  $("dateTo").value="";
+  renderHistory();
+});
+$("summaryCurrency").addEventListener("change",renderDashboard);
+$("refreshButton")?.addEventListener("click",loadRecords);
+
+document.querySelectorAll("[data-jump]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const target = $(btn.dataset.jump);
+    if (target) target.scrollIntoView({behavior:"smooth",block:"start"});
   });
+});
 
-  (async function init() {
-    const { data, error } = await db.auth.getSession();
+db.auth.onAuthStateChange((event,session)=>{
+  if (event==="SIGNED_OUT") {
+    user = null;
+    records = [];
+    $("mainApp").classList.add("hidden");
+    $("authPanel").classList.remove("hidden");
+  }
+});
 
-    if (error) {
-      showMessage("authMessage", error.message, true);
-      return;
-    }
-
-    await handleSession(data.session);
-  })();
+(async function init(){
+  try {
+    const {data,error} = await db.auth.getSession();
+    if (error) throw error;
+    if (data.session) await showApp(data.session.user);
+  } catch(err) {
+    message("authMessage",err.message,true);
+  }
+})();
 </script>
 </body>
 </html>
